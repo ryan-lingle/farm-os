@@ -133,7 +133,7 @@ export const GenericAssetPage: React.FC<GenericAssetPageProps> = ({
           <CardContent>{isLoading ? <Skeleton className="h-9 w-16" /> : <p className="text-3xl font-bold">{totalCount}</p>}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Total {quantityLabel.charAt(0).toUpperCase() + quantityLabel.slice(1)}</CardTitle><CardDescription>Combined quantity</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Total Count</CardTitle><CardDescription>Combined {quantityLabel}</CardDescription></CardHeader>
           <CardContent>{isLoading ? <Skeleton className="h-9 w-16" /> : <p className="text-3xl font-bold">{totalQuantity}</p>}</CardContent>
         </Card>
         <Card>
