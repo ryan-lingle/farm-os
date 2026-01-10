@@ -407,30 +407,6 @@ export const logsApi = {
   },
 
   create: async (logType: string, data: any) => {
-    // For harvest logs, we need to send the full structure with log wrapper
-    if (logType === 'harvest') {
-      return fetchApi<ApiResponse<Log>>(
-        `/api/v1/logs`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            log: {
-              log_type: 'harvest',
-              name: data.name,
-              status: data.status || 'pending',
-              timestamp: data.timestamp || new Date().toISOString(),
-              notes: data.notes,
-              to_location_id: data.to_location_id,
-              asset_ids: data.asset_ids,
-              asset_roles: data.asset_roles,
-              quantities_attributes: data.quantities_attributes,
-            },
-          }),
-        }
-      );
-    }
-    
-    // For other log types, use the old format
     return fetchApi<ApiResponse<Log>>(
       `/api/v1/logs/${logType}`,
       {
@@ -440,7 +416,9 @@ export const logsApi = {
           status: data.status || 'done',
           timestamp: data.timestamp || new Date().toISOString(),
           notes: data.notes,
-          ...data,
+          location_id: data.location_id,
+          asset_ids: data.asset_ids,
+          quantities_attributes: data.quantities_attributes,
         }),
       }
     );
