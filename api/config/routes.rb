@@ -37,6 +37,17 @@ Rails.application.routes.draw do
 
       # Fact routes (semantic knowledge graph)
       resources :facts, only: [ :index, :show, :create ]
+
+      # Task system routes
+      resources :tasks, only: [ :index, :show, :create, :update, :destroy ]
+      resources :projects, only: [ :index, :show, :create, :update, :destroy ]
+      resources :cycles, only: [ :index, :show, :create, :update, :destroy ] do
+        collection do
+          post :generate
+          get :current
+        end
+      end
+      resources :task_relations, only: [ :index, :show, :create, :destroy ]
     end
   end
 

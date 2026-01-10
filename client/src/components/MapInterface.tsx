@@ -47,9 +47,11 @@ const MapInterface = () => {
   const popupRoot = useRef<ReactDOM.Root | null>(null);
   const queryClient = useRef(new QueryClient());
   const locationMarkers = useRef<mapboxgl.Marker[]>([]);
+  const drawModeRef = useRef<'polygon' | 'select'>('select'); // Ref for use in event handlers
+  const isInitialStyleRef = useRef(true); // Track initial style load
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
   const navigate = useNavigate();
-  
+
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [hoveredLocationId, setHoveredLocationId] = useState<string | null>(null);
   const [drawMode, setDrawMode] = useState<'polygon' | 'select'>('select');
@@ -87,7 +89,16 @@ const MapInterface = () => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken || map.current) return;
+    console.log('[MapInterface] Map init effect running');
+    console.log('[MapInterface] mapContainer.current:', !!mapContainer.current);
+    console.log('[MapInterface] mapboxToken:', mapboxToken ? 'present' : 'missing');
+    console.log('[MapInterface] map.current:', !!map.current);
+
+    if (!mapContainer.current || !mapboxToken || map.current) {
+      console.log('[MapInterface] Map init skipped - conditions not met');
+      return;
+    }
+    console.log('[MapInterface] Proceeding with map initialization');
 
     mapboxgl.accessToken = mapboxToken;
     
@@ -107,6 +118,7 @@ const MapInterface = () => {
     });
 
     // Initialize drawing tools
+    console.log('[MapInterface] Initializing MapboxDraw control');
     draw.current = new MapboxDraw({
       displayControlsDefault: false,
       controls: {},
@@ -188,9 +200,33 @@ const MapInterface = () => {
     });
 
     map.current.addControl(draw.current);
+    console.log('[MapInterface] MapboxDraw control added to map');
+
+    // Debug: log map clicks
+    map.current.on('click', (e: any) => {
+      console.log('[MapInterface] Map clicked at:', e.lngLat);
+    });
+
+    // Handle draw mode changes from MapboxDraw
+    // When a polygon is completed, MapboxDraw auto-switches to simple_select
+    // We need to re-apply polygon mode if user still wants to draw
+    map.current.on('draw.modechange', (e: any) => {
+      console.log('[MapInterface] draw.modechange event:', e.mode);
+      // If MapboxDraw switched to simple_select but user wants polygon mode, re-apply after short delay
+      if (e.mode === 'simple_select' && drawModeRef.current === 'polygon') {
+        console.log('[MapInterface] Auto-switching back to draw_polygon mode');
+        setTimeout(() => {
+          if (draw.current && drawModeRef.current === 'polygon') {
+            draw.current.changeMode('draw_polygon');
+          }
+        }, 100);
+      }
+    });
 
     // Handle draw create - open dialog instead of prompt
+    console.log('[MapInterface] Setting up draw event handlers');
     map.current.on('draw.create', async (e: any) => {
+      console.log('[MapInterface] draw.create event fired!', e);
       const feature = e.features[0];
       setPendingGeometry({
         type: 'Polygon' as const,
@@ -242,9 +278,21 @@ const MapInterface = () => {
     };
   }, [mapboxToken]);
 
+  // Keep drawModeRef updated for use in event handlers
+  useEffect(() => {
+    drawModeRef.current = drawMode;
+  }, [drawMode]);
+
   // Handle map style changes
   useEffect(() => {
     if (!map.current) return;
+
+    // Skip the initial mount - map was already created with the correct style
+    if (isInitialStyleRef.current) {
+      isInitialStyleRef.current = false;
+      console.log('[MapInterface] Skipping initial style effect');
+      return;
+    }
 
     const getMapStyle = (style: string) => {
       switch (style) {
@@ -253,18 +301,22 @@ const MapInterface = () => {
       }
     };
 
-    console.log('Changing map style to:', mapStyle);
+    console.log('[MapInterface] Changing map style to:', mapStyle);
     const currentCenter = map.current.getCenter();
     const currentZoom = map.current.getZoom();
-    console.log('Current position before style change:', { center: currentCenter, zoom: currentZoom });
 
     map.current.setStyle(getMapStyle(mapStyle));
 
     map.current.once('style.load', () => {
-      console.log('Style loaded, restoring position');
+      console.log('[MapInterface] Style loaded, restoring position and draw mode');
       if (map.current) {
         map.current.setCenter(currentCenter);
         map.current.setZoom(currentZoom);
+      }
+      // Re-apply draw mode after style change using ref for current value
+      if (draw.current && drawModeRef.current === 'polygon') {
+        console.log('[MapInterface] Re-applying draw_polygon mode after style change');
+        draw.current.changeMode('draw_polygon');
       }
     });
   }, [mapStyle]);
@@ -300,14 +352,23 @@ const MapInterface = () => {
 
   // Handle draw mode changes
   useEffect(() => {
-    if (!draw.current) return;
+    console.log('[MapInterface] Draw mode effect triggered, drawMode:', drawMode);
+    console.log('[MapInterface] draw.current exists:', !!draw.current);
 
+    if (!draw.current) {
+      console.log('[MapInterface] draw.current is null, skipping mode change');
+      return;
+    }
+
+    console.log('[MapInterface] Changing draw mode to:', drawMode);
     switch (drawMode) {
       case 'polygon':
         draw.current.changeMode('draw_polygon');
+        console.log('[MapInterface] Changed to draw_polygon mode');
         break;
       case 'select':
         draw.current.changeMode('simple_select');
+        console.log('[MapInterface] Changed to simple_select mode');
         break;
     }
   }, [drawMode]);
