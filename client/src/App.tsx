@@ -21,6 +21,7 @@ import Input from "./pages/records/logs/Input";
 import Activity from "./pages/records/logs/Activity";
 import Observation from "./pages/records/logs/Observation";
 import Maintenance from "./pages/records/logs/Maintenance";
+import { ChatContainer } from "./components/chat";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
             </div>
           </div>
         </SidebarProvider>
+        <ChatContainer />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

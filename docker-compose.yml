@@ -56,24 +56,27 @@ services:
       - api
     environment:
       VITE_API_BASE_URL: http://localhost:3005
+      VITE_CHAT_API_URL: http://localhost:8000
     stdin_open: true
     tty: true
 
-  # Python MCP Server
+  # Python MCP/Chat Server
   mcp-server:
     build:
       context: ./mcp-server
       dockerfile: Dockerfile
     volumes:
       - ./mcp-server:/app
+    ports:
+      - "8000:8000"
     environment:
       FARM_API_URL: http://api:3000/api/v1
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
     depends_on:
       - api
-    # MCP runs via stdio, not as a web server
-    # This container is for building/testing the MCP server
-    # For Claude integration, run the MCP server locally
-    command: ["python", "-c", "print('MCP Server ready. Run locally for Claude integration.')"]
+    # Run HTTP server for chat endpoint
+    command: ["python", "http_server.py"]
 
 volumes:
   postgres_data:
