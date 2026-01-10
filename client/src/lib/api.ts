@@ -183,7 +183,24 @@ export function convertGeoJsonToFarmApi(geoJson: any): PointGeometry | PolygonGe
  */
 export function convertFarmApiToGeoJson(location: Location): GeoJSON.Feature {
   const attrs = location.attributes;
-  
+
+  // Handle locations with null geometry
+  if (!attrs.geometry) {
+    return {
+      type: 'Feature',
+      geometry: null as any,
+      properties: {
+        id: location.id,
+        name: attrs.name,
+        notes: attrs.notes,
+        status: attrs.status,
+        area_acres: attrs.area_in_acres,
+        asset_count: attrs.asset_count,
+        ...attrs
+      }
+    };
+  }
+
   if (attrs.location_type === 'point') {
     const point = attrs.geometry as PointGeometry;
     return {
@@ -203,7 +220,7 @@ export function convertFarmApiToGeoJson(location: Location): GeoJSON.Feature {
       }
     };
   }
-  
+
   if (attrs.location_type === 'polygon') {
     const polygon = attrs.geometry as PolygonGeometry;
     return {
@@ -225,7 +242,7 @@ export function convertFarmApiToGeoJson(location: Location): GeoJSON.Feature {
       }
     };
   }
-  
+
   throw new Error(`Unsupported location type: ${attrs.location_type}`);
 }
 

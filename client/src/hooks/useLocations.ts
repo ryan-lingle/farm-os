@@ -11,7 +11,7 @@ export interface Location {
   geometry: {
     type: 'Polygon' | 'Point';
     coordinates: number[][][] | number[];
-  };
+  } | null;
   status?: string | null;
   area_acres?: number | null;
   asset_count?: number;
@@ -19,7 +19,7 @@ export interface Location {
   center_point?: {
     latitude: number;
     longitude: number;
-  };
+  } | null;
   // Hierarchy fields
   parent_id?: number | null;
   depth?: number;
