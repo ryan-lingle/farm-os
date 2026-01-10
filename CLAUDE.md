@@ -83,7 +83,7 @@ The client reads `VITE_API_BASE_URL` for the API endpoint (defaults to `http://l
 
 ## MCP Server Component (`/mcp-server`)
 
-Python-based Model Context Protocol server for AI assistant integrations.
+Python-based Model Context Protocol server for AI assistant integrations. When configured, Claude can directly interact with the farmOS API using natural language.
 
 ### Available Tools
 - `get_api_info()`, `get_schema()` - Discovery
@@ -93,13 +93,6 @@ Python-based Model Context Protocol server for AI assistant integrations.
 - `list_predicates()`, `list_facts()`, `create_fact()` - Semantic knowledge graph
 - `move_asset()`, `record_observation()`, `get_farm_summary()` - Convenience tools
 
-### Running Locally (for Claude integration)
-```bash
-cd mcp-server
-source .venv/bin/activate
-python main.py
-```
-
 ### MCP Configuration
 The `.mcp.json` file configures the MCP server for Claude Code integration:
 ```json
@@ -107,8 +100,8 @@ The `.mcp.json` file configures the MCP server for Claude Code integration:
   "mcpServers": {
     "farmos": {
       "type": "stdio",
-      "command": "/Users/ryanlingle/code/farmOS/mcp-server/.venv/bin/python",
-      "args": ["/Users/ryanlingle/code/farmOS/mcp-server/main.py"],
+      "command": "./mcp-server/run.sh",
+      "args": [],
       "env": {
         "FARM_API_URL": "http://localhost:3005/api/v1"
       }
@@ -116,6 +109,20 @@ The `.mcp.json` file configures the MCP server for Claude Code integration:
   }
 }
 ```
+
+The `run.sh` script automatically:
+- Creates the Python virtual environment if it doesn't exist
+- Installs dependencies from `requirements.txt`
+- Uses `FARM_API_URL` from environment (defaults to Docker port 3005)
+
+### Verifying the MCP Connection
+Once services are running (`docker compose up -d`), Claude can use farmOS MCP tools directly. To verify the connection is working, ask Claude to run `get_farm_summary()` - it should return asset counts and predicates.
+
+### Customizing the API URL
+Override `FARM_API_URL` in `.mcp.json` to point to a different API instance:
+- Docker (default): `http://localhost:3005/api/v1`
+- Local Rails server: `http://localhost:3000/api/v1`
+- Remote server: `https://your-farm.example.com/api/v1`
 
 ## Development Workflow
 
