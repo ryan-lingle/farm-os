@@ -1,0 +1,13 @@
+#!/bin/bash
+# Docker compose wrapper that loads environment from shared location
+# This enables git worktree support by loading env from ~/.config/farmOS/.env
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
+
+# Load environment variables
+source "${SCRIPT_DIR}/load-env.sh"
+
+# Run docker compose with all arguments
+cd "${PROJECT_DIR}"
+docker compose "$@"
