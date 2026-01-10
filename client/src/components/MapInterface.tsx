@@ -380,8 +380,9 @@ const MapInterface = () => {
     // Clear existing features
     draw.current.deleteAll();
 
-    // Add saved locations to map
+    // Add saved locations to map (skip those without geometry)
     locations.forEach(location => {
+      if (!location.geometry) return;
       const feature = {
         type: 'Feature' as const,
         properties: { id: location.id },
@@ -442,11 +443,14 @@ const MapInterface = () => {
     locationMarkers.current.forEach(marker => marker.remove());
     locationMarkers.current = [];
 
-    // Add marker for each location
+    // Add marker for each location (skip those without geometry)
     locations.forEach(location => {
+      // Skip locations without geometry
+      if (!location.geometry) return;
+
       // Calculate center point of location
       let center: [number, number];
-      
+
       if (location.geometry.type === 'Point') {
         const coords = location.geometry.coordinates as number[];
         center = [coords[0], coords[1]];
@@ -508,7 +512,7 @@ const MapInterface = () => {
   // Handle location selection
   const handleLocationSelect = (location: Location) => {
     setSelectedLocation(location);
-    if (!map.current) return;
+    if (!map.current || !location.geometry) return;
 
     if (location.geometry.type === 'Point') {
       // For points, just center on the point
@@ -524,7 +528,7 @@ const MapInterface = () => {
       const bounds = coords.reduce((bounds, coord) => {
         return bounds.extend(coord as [number, number]);
       }, new mapboxgl.LngLatBounds(coords[0] as [number, number], coords[0] as [number, number]));
-      
+
       map.current.fitBounds(bounds, { padding: 50, duration: 1000 });
     }
   };
