@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "farmAPI": {
+      "command": "/Users/ryanlingle/code/farmos_mcp/run_farmos.sh",
+      "env": {
+        "FARM_API_URL": "http://localhost:3005/api/v1"
+      }
+    }
+  }
+}

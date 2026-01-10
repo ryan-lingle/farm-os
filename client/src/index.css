@@ -1,0 +1,240 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 210 79% 48%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 210 79% 58%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 196 75% 88%;
+    --accent-foreground: 210 79% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 210 79% 48%;
+
+    /* Map specific colors */
+    --map-toolbar: 0 0% 100%;
+    --map-toolbar-foreground: 222.2 84% 4.9%;
+    --map-sidebar: 210 40% 98%;
+    --map-sidebar-foreground: 222.2 84% 4.9%;
+    
+    /* Drawing colors */
+    --draw-polygon: 210 79% 48%;
+    --draw-point: 142 76% 36%;
+    --draw-active: 39 77% 56%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--background)));
+    
+    /* Shadows */
+    --shadow-map: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+    --shadow-toolbar: 0 4px 20px -2px hsl(0 0% 0% / 0.1);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom Mapbox Popup Styling */
+.location-assets-popup .mapboxgl-popup-content {
+  @apply bg-background border border-border rounded-lg shadow-xl p-4;
+  font-family: inherit;
+  min-width: 280px;
+  max-width: 400px;
+  animation: popupFadeIn 0.2s ease-out;
+}
+
+.location-assets-popup .mapboxgl-popup-tip {
+  @apply border-t-border;
+}
+
+.location-assets-popup .mapboxgl-popup-close-button {
+  @apply text-muted-foreground hover:text-foreground;
+  font-size: 20px;
+  padding: 8px;
+  right: 4px;
+  top: 4px;
+  transition: all 0.15s ease;
+}
+
+.location-assets-popup .mapboxgl-popup-close-button:hover {
+  @apply bg-accent;
+  border-radius: 4px;
+}
+
+/* Popup animation */
+@keyframes popupFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Location Asset Marker Styling */
+.location-asset-marker {
+  /* Critical: Don't use flexbox on the marker wrapper */
+  width: 60px;
+  height: 60px;
+  position: relative;
+  pointer-events: auto;
+}
+
+.location-asset-marker .marker-circle {
+  @apply bg-primary text-primary-foreground shadow-lg;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  animation: markerAppear 0.3s ease-out;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.location-asset-marker:hover .marker-circle {
+  @apply shadow-2xl;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  border-width: 4px;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.location-asset-marker .marker-count {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.location-asset-marker .marker-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  opacity: 0.95;
+}
+
+/* Marker appear animation */
+@keyframes markerAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Enhanced hover effect for location polygons */
+.mapboxgl-canvas-container.mapboxgl-interactive {
+  cursor: default;
+}
+
+/* Enhance the draw polygon styles when hovering */
+.gl-draw-polygon-fill-inactive:hover {
+  fill-opacity: 0.2 !important;
+}

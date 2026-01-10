@@ -1,0 +1,45 @@
+# Development Dockerfile for farmAPI
+FROM ruby:3.3.0
+
+# Install dependencies including Chromium
+RUN apt-get update -qq && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    nodejs \
+    postgresql-client \
+    libproj-dev \
+    proj-bin \
+    # Chromium and dependencies
+    chromium \
+    chromium-driver \
+    # Additional dependencies for headless Chrome
+    libnss3 \
+    libgconf-2-4 \
+    libfontconfig1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Chrome/Chromium executable path for Selenium
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
+# Set display for headless Chrome
+ENV DISPLAY=:99
+
+# Set working directory
+WORKDIR /rails
+
+# Install bundler
+RUN gem install bundler
+
+# Copy Gemfile and install gems
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+# Copy the rest of the application
+COPY . .
+
+# Expose port 3000
+EXPOSE 3000
+
+# Start the Rails server
+CMD ["rails", "server", "-b", "0.0.0.0"] 

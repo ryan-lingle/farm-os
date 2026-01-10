@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "farmos": {
+      "type": "stdio",
+      "command": "/Users/ryanlingle/code/farmOS/mcp-server/.venv/bin/python",
+      "args": [
+        "/Users/ryanlingle/code/farmOS/mcp-server/main.py"
+      ],
+      "env": {
+        "FARM_API_URL": "http://localhost:3005/api/v1"
+      }
+    }
+  }
+}

@@ -1,0 +1,81 @@
+name: farmos
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: farmapi_development
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Rails API Backend
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails db:prepare && bundle exec rails server -b 0.0.0.0"
+    volumes:
+      - ./api:/rails
+      - api_bundle_cache:/usr/local/bundle
+    ports:
+      - "3005:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_HOST: db
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: password
+      DATABASE_NAME: farmapi_development
+      RAILS_ENV: development
+    stdin_open: true
+    tty: true
+
+  # React/Vite Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ./client:/app
+      - client_node_modules:/app/node_modules
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+    environment:
+      VITE_API_BASE_URL: http://localhost:3005
+    stdin_open: true
+    tty: true
+
+  # Python MCP Server
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    volumes:
+      - ./mcp-server:/app
+    environment:
+      FARM_API_URL: http://api:3000/api/v1
+    depends_on:
+      - api
+    # MCP runs via stdio, not as a web server
+    # This container is for building/testing the MCP server
+    # For Claude integration, run the MCP server locally
+    command: ["python", "-c", "print('MCP Server ready. Run locally for Claude integration.')"]
+
+volumes:
+  postgres_data:
+  api_bundle_cache:
+  client_node_modules:

@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+log/
+
+# Build outputs
+dist/
+build/
+tmp/
+
+# Ruby
+*.gem
+.bundle/
+vendor/bundle/
+
+# Python
+*.pyc
+*.pyo
+.Python
+pip-log.txt
+
+# Test coverage
+coverage/
+
+# Misc
+.conductor/
+.claude/
