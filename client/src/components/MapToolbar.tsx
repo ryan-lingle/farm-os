@@ -42,7 +42,10 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onDrawModeChange('select')}
+          onClick={() => {
+            console.log('[MapToolbar] Select button clicked');
+            onDrawModeChange('select');
+          }}
           className={cn(
             "rounded-none border-r border-border/50 hover:bg-accent",
             drawMode === 'select' && "bg-primary text-primary-foreground hover:bg-primary"
@@ -50,11 +53,14 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
         >
           <MousePointer className="h-4 w-4" />
         </Button>
-        
+
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onDrawModeChange('polygon')}
+          onClick={() => {
+            console.log('[MapToolbar] Polygon button clicked');
+            onDrawModeChange('polygon');
+          }}
           className={cn(
             "rounded-none hover:bg-accent",
             drawMode === 'polygon' && "bg-draw-polygon text-white hover:bg-draw-polygon"

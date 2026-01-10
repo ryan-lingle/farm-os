@@ -1,8 +1,20 @@
-export default function Harvest() {
+import { Wheat } from 'lucide-react';
+import { GenericLogPage } from '@/components/GenericLogPage';
+
+const Harvest = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Harvest Logs</h1>
-      <p className="text-muted-foreground mt-2">Coming soon...</p>
-    </div>
+    <GenericLogPage
+      logType="harvest"
+      title="Harvest"
+      titlePlural="Harvests"
+      description="Track crop yields, egg collection, and other farm products"
+      icon={Wheat}
+      iconColor="text-amber-600"
+      showQuantity={true}
+      quantityLabel="Amount Harvested"
+      defaultUnit="lbs"
+    />
   );
-}
+};
+
+export default Harvest;

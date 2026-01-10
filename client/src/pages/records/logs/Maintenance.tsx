@@ -1,8 +1,17 @@
-export default function Maintenance() {
+import { Wrench } from 'lucide-react';
+import { GenericLogPage } from '@/components/GenericLogPage';
+
+const Maintenance = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Maintenance Logs</h1>
-      <p className="text-muted-foreground mt-2">Coming soon...</p>
-    </div>
+    <GenericLogPage
+      logType="maintenance"
+      title="Maintenance"
+      titlePlural="Maintenance"
+      description="Track equipment repairs, infrastructure upkeep, and maintenance work"
+      icon={Wrench}
+      iconColor="text-orange-600"
+    />
   );
-}
+};
+
+export default Maintenance;

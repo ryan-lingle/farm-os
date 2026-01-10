@@ -1,8 +1,17 @@
-export default function Activity() {
+import { Activity as ActivityIcon } from 'lucide-react';
+import { GenericLogPage } from '@/components/GenericLogPage';
+
+const Activity = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Activity Logs</h1>
-      <p className="text-muted-foreground mt-2">Coming soon...</p>
-    </div>
+    <GenericLogPage
+      logType="activity"
+      title="Activity"
+      titlePlural="Activities"
+      description="Log general farm activities and work performed"
+      icon={ActivityIcon}
+      iconColor="text-green-600"
+    />
   );
-}
+};
+
+export default Activity;

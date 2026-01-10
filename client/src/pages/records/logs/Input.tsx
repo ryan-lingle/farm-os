@@ -1,8 +1,20 @@
-export default function Input() {
+import { Package } from 'lucide-react';
+import { GenericLogPage } from '@/components/GenericLogPage';
+
+const Input = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Input Logs</h1>
-      <p className="text-muted-foreground mt-2">Coming soon...</p>
-    </div>
+    <GenericLogPage
+      logType="input"
+      title="Input"
+      titlePlural="Inputs"
+      description="Record fertilizers, amendments, feed, and other inputs applied"
+      icon={Package}
+      iconColor="text-blue-600"
+      showQuantity={true}
+      quantityLabel="Amount Applied"
+      defaultUnit="lbs"
+    />
   );
-}
+};
+
+export default Input;

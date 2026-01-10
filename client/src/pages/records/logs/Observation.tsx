@@ -1,8 +1,17 @@
-export default function Observation() {
+import { Eye } from 'lucide-react';
+import { GenericLogPage } from '@/components/GenericLogPage';
+
+const Observation = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Observation Logs</h1>
-      <p className="text-muted-foreground mt-2">Coming soon...</p>
-    </div>
+    <GenericLogPage
+      logType="observation"
+      title="Observation"
+      titlePlural="Observations"
+      description="Record observations about crops, animals, and farm conditions"
+      icon={Eye}
+      iconColor="text-purple-600"
+    />
   );
-}
+};
+
+export default Observation;
