@@ -1,3 +1,10 @@
 mcp
 requests
 uvicorn
+fastapi
+openai
+
+# Test dependencies
+pytest
+pytest-asyncio
+httpx
