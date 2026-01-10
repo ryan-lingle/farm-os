@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_22_170300) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_10_000007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,17 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_170300) do
     t.index ["asset_id"], name: "index_assets_logs_on_asset_id"
     t.index ["log_id", "role"], name: "index_assets_logs_on_log_id_and_role"
     t.index ["log_id"], name: "index_assets_logs_on_log_id"
+  end
+
+  create_table "cycles", force: :cascade do |t|
+    t.string "name", null: false
+    t.date "start_date", null: false
+    t.date "end_date", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["end_date"], name: "index_cycles_on_end_date"
+    t.index ["start_date", "end_date"], name: "index_cycles_on_start_date_and_end_date", unique: true
+    t.index ["start_date"], name: "index_cycles_on_start_date"
   end
 
   create_table "facts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -96,6 +107,17 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_170300) do
     t.index ["name"], name: "index_predicates_on_name", unique: true
   end
 
+  create_table "projects", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.string "status", default: "planned", null: false
+    t.date "start_date"
+    t.date "target_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_projects_on_status"
+  end
+
   create_table "quantities", force: :cascade do |t|
     t.string "label"
     t.string "measure"
@@ -106,6 +128,66 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_170300) do
     t.string "unit"
     t.bigint "log_id"
     t.index ["log_id"], name: "index_quantities_on_log_id"
+  end
+
+  create_table "task_assets", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "asset_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["asset_id"], name: "index_task_assets_on_asset_id"
+    t.index ["task_id", "asset_id"], name: "index_task_assets_on_task_id_and_asset_id", unique: true
+    t.index ["task_id"], name: "index_task_assets_on_task_id"
+  end
+
+  create_table "task_locations", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "location_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["location_id"], name: "index_task_locations_on_location_id"
+    t.index ["task_id", "location_id"], name: "index_task_locations_on_task_id_and_location_id", unique: true
+    t.index ["task_id"], name: "index_task_locations_on_task_id"
+  end
+
+  create_table "task_logs", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "log_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["log_id"], name: "index_task_logs_on_log_id"
+    t.index ["task_id", "log_id"], name: "index_task_logs_on_task_id_and_log_id", unique: true
+    t.index ["task_id"], name: "index_task_logs_on_task_id"
+  end
+
+  create_table "task_relations", force: :cascade do |t|
+    t.bigint "source_task_id", null: false
+    t.bigint "target_task_id", null: false
+    t.string "relation_type", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["relation_type"], name: "index_task_relations_on_relation_type"
+    t.index ["source_task_id", "target_task_id", "relation_type"], name: "index_task_relations_unique", unique: true
+    t.index ["source_task_id"], name: "index_task_relations_on_source_task_id"
+    t.index ["target_task_id"], name: "index_task_relations_on_target_task_id"
+  end
+
+  create_table "tasks", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description"
+    t.string "state", default: "backlog", null: false
+    t.integer "estimate"
+    t.date "target_date"
+    t.bigint "parent_id"
+    t.bigint "project_id"
+    t.bigint "cycle_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["cycle_id"], name: "index_tasks_on_cycle_id"
+    t.index ["parent_id"], name: "index_tasks_on_parent_id"
+    t.index ["project_id"], name: "index_tasks_on_project_id"
+    t.index ["state"], name: "index_tasks_on_state"
+    t.index ["target_date"], name: "index_tasks_on_target_date"
   end
 
   create_table "taxonomy_terms", force: :cascade do |t|
@@ -125,4 +207,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_22_170300) do
   add_foreign_key "logs", "locations", column: "from_location_id"
   add_foreign_key "logs", "locations", column: "to_location_id"
   add_foreign_key "quantities", "logs"
+  add_foreign_key "task_assets", "assets"
+  add_foreign_key "task_assets", "tasks"
+  add_foreign_key "task_locations", "locations"
+  add_foreign_key "task_locations", "tasks"
+  add_foreign_key "task_logs", "logs"
+  add_foreign_key "task_logs", "tasks"
+  add_foreign_key "task_relations", "tasks", column: "source_task_id"
+  add_foreign_key "task_relations", "tasks", column: "target_task_id"
+  add_foreign_key "tasks", "cycles"
+  add_foreign_key "tasks", "projects"
+  add_foreign_key "tasks", "tasks", column: "parent_id"
 end
