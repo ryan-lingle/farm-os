@@ -15,7 +15,29 @@ farmOS/
 
 ## Quick Start
 
+### Environment Setup (Required)
+
+For **git worktree support**, store your secrets in a shared location:
+
+```bash
+# Create shared config directory
+mkdir -p ~/.config/farmOS
+
+# Copy and edit the example file
+cp .env.example ~/.config/farmOS/.env
+# Edit ~/.config/farmOS/.env with your actual API keys
+```
+
+This allows the same secrets to work across all git worktrees. Alternatively, you can create a local `.env` file in the project root.
+
 ### Starting All Services
+
+**Option 1: Use the wrapper script** (recommended for worktrees):
+```bash
+./scripts/dc up -d
+```
+
+**Option 2: Standard docker compose** (requires local .env or shell env vars):
 ```bash
 docker compose up -d
 ```
