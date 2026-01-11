@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { useTasks, Task, TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
+import { usePlans } from '@/hooks/usePlans';
 import { TaskList, TaskFilters, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,6 +18,7 @@ export default function Tasks() {
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
 
   const { tasks, isLoading } = useTasks(filters);
+  const { plans } = usePlans();
 
   const handleTaskClick = (task: Task) => {
     setSelectedTaskId(task.id);
@@ -84,6 +86,7 @@ export default function Tasks() {
         ) : viewMode === 'list' ? (
           <TaskList
             tasks={tasks}
+            plans={plans}
             groupBy="state"
             onTaskClick={handleTaskClick}
             onTaskEdit={handleTaskEdit}

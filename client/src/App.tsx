@@ -22,6 +22,9 @@ import Activity from "./pages/records/logs/Activity";
 import Observation from "./pages/records/logs/Observation";
 import Maintenance from "./pages/records/logs/Maintenance";
 import Tasks from "./pages/tasks/Tasks";
+import Plans from "./pages/tasks/Plans";
+import PlanDetail from "./pages/tasks/PlanDetail";
+import Cycles from "./pages/tasks/Cycles";
 import { ChatContainer } from "./components/chat";
 
 const queryClient = new QueryClient();
@@ -61,8 +64,9 @@ const App = () => (
                   <Route path="/records/logs/observation" element={<Observation />} />
                   <Route path="/records/logs/maintenance" element={<Maintenance />} />
                   <Route path="/tasks" element={<Tasks />} />
-                  <Route path="/tasks/plans" element={<Tasks />} />
-                  <Route path="/tasks/cycles" element={<Tasks />} />
+                  <Route path="/tasks/plans" element={<Plans />} />
+                  <Route path="/tasks/plans/:id" element={<PlanDetail />} />
+                  <Route path="/tasks/cycles" element={<Cycles />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>

@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useCreateTask, TaskState } from '@/hooks/useTasks';
 import { usePlans, Plan } from '@/hooks/usePlans';
-import { useCycles, Cycle } from '@/hooks/useCycles';
+import { useCycles, useCurrentCycle, Cycle } from '@/hooks/useCycles';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,7 +51,8 @@ export function TaskQuickCreate({
   const inputRef = useRef<HTMLInputElement>(null);
   const createTask = useCreateTask();
   const { plans } = usePlans();
-  const { cycles, currentCycle } = useCycles();
+  const { cycles } = useCycles();
+  const { data: currentCycle } = useCurrentCycle();
 
   // Auto-select current cycle if none selected
   useEffect(() => {

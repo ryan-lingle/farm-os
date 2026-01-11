@@ -32,6 +32,7 @@ interface TaskListItemProps {
   onClick?: (task: Task) => void;
   onEdit?: (task: Task) => void;
   showPlan?: boolean;
+  planName?: string;
   indent?: number;
 }
 
@@ -57,6 +58,7 @@ export function TaskListItem({
   onClick,
   onEdit,
   showPlan = false,
+  planName,
   indent = 0,
 }: TaskListItemProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -102,7 +104,7 @@ export function TaskListItem({
       />
 
       {/* Subtask indicator */}
-      {task.childCount && task.childCount > 0 && (
+      {(task.childCount ?? 0) > 0 && (
         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
       )}
 
@@ -115,6 +117,13 @@ export function TaskListItem({
       >
         {task.title}
       </span>
+
+      {/* Plan name */}
+      {planName && (
+        <span className="shrink-0 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+          {planName}
+        </span>
+      )}
 
       {/* State badge */}
       <Badge

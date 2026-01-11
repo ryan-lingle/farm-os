@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { Task, TaskState } from '@/hooks/useTasks';
+import { Plan } from '@/hooks/usePlans';
 import { TaskListItem } from './TaskListItem';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,7 @@ import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 
 interface TaskListProps {
   tasks: Task[];
+  plans?: Plan[];
   groupBy?: 'state' | 'none';
   onTaskClick?: (task: Task) => void;
   onTaskEdit?: (task: Task) => void;
@@ -41,6 +43,7 @@ const stateColors: Record<TaskState, string> = {
 interface TaskGroupProps {
   state: TaskState;
   tasks: Task[];
+  plansMap?: Map<number, string>;
   onTaskClick?: (task: Task) => void;
   onTaskEdit?: (task: Task) => void;
   onAddTask?: (state: TaskState) => void;
@@ -50,6 +53,7 @@ interface TaskGroupProps {
 function TaskGroup({
   state,
   tasks,
+  plansMap,
   onTaskClick,
   onTaskEdit,
   onAddTask,
@@ -94,6 +98,7 @@ function TaskGroup({
             <TaskListItem
               key={task.id}
               task={task}
+              planName={plansMap?.get(task.planId)}
               onClick={onTaskClick}
               onEdit={onTaskEdit}
             />
@@ -111,12 +116,18 @@ function TaskGroup({
 
 export function TaskList({
   tasks,
+  plans,
   groupBy = 'state',
   onTaskClick,
   onTaskEdit,
   onAddTask,
   emptyMessage = 'No tasks found',
 }: TaskListProps) {
+  // Create a map of plan IDs to names for quick lookup
+  const plansMap = new Map<number, string>(
+    plans?.map((p) => [parseInt(p.id, 10), p.name]) || []
+  );
+
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -138,6 +149,7 @@ export function TaskList({
           <TaskListItem
             key={task.id}
             task={task}
+            planName={plansMap.get(task.planId)}
             onClick={onTaskClick}
             onEdit={onTaskEdit}
           />
@@ -171,6 +183,7 @@ export function TaskList({
             key={state}
             state={state}
             tasks={stateTasks}
+            plansMap={plansMap}
             onTaskClick={onTaskClick}
             onTaskEdit={onTaskEdit}
             onAddTask={onAddTask}
