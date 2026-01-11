@@ -6,13 +6,13 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { sendChatMessage } from '@/lib/chat-api';
-import type { ChatMessage, ToolCall } from '@/types/chat';
+import type { ChatMessage, ChatImage, ToolCall } from '@/types/chat';
 
 interface UseChatReturn {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
-  sendMessage: (message: string) => Promise<void>;
+  sendMessage: (message: string, images?: ChatImage[]) => Promise<void>;
   clearMessages: () => void;
   clearError: () => void;
 }
@@ -23,11 +23,11 @@ export function useChat(): UseChatReturn {
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const sendMessage = useCallback(async (message: string) => {
-    if (!message.trim()) return;
+  const sendMessage = useCallback(async (message: string, images?: ChatImage[]) => {
+    if (!message.trim() && (!images || images.length === 0)) return;
 
     // Add user message to chat
-    const userMessage: ChatMessage = { role: 'user', content: message };
+    const userMessage: ChatMessage = { role: 'user', content: message, images };
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setError(null);

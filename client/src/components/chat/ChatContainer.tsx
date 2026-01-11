@@ -20,7 +20,7 @@ export function ChatContainer() {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {isOpen ? (
-        <div className="w-96 h-[500px] animate-in slide-in-from-bottom-2 fade-in duration-200">
+        <div className="w-[480px] h-[600px] animate-in slide-in-from-bottom-2 fade-in duration-200">
           <ChatPanel
             messages={messages}
             isLoading={isLoading}

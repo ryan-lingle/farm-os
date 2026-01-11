@@ -120,7 +120,22 @@ export function ChatMessage({ message }: ChatMessageProps) {
             : 'bg-muted text-muted-foreground'
         )}
       >
-        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        {/* Images */}
+        {message.images && message.images.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {message.images.map((image) => (
+              <img
+                key={image.id}
+                src={image.data}
+                alt={image.name}
+                className="max-w-full max-h-48 rounded-md object-cover"
+              />
+            ))}
+          </div>
+        )}
+        {message.content && (
+          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        )}
         {!isUser && <ErrorDetails errors={errors} />}
       </div>
     </div>

@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
-import type { ChatMessage as ChatMessageType } from '@/types/chat';
+import type { ChatMessage as ChatMessageType, ChatImage } from '@/types/chat';
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
   isLoading: boolean;
   error: string | null;
-  onSend: (message: string) => void;
+  onSend: (message: string, images?: ChatImage[]) => void;
   onClose: () => void;
   onClear: () => void;
 }

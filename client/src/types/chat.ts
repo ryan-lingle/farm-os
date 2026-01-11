@@ -2,9 +2,17 @@
  * Chat types for farmOS AI assistant.
  */
 
+export interface ChatImage {
+  id: string;
+  data: string; // base64 data URL
+  name: string;
+  type: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  images?: ChatImage[];
   toolCalls?: ToolCall[];
 }
 
