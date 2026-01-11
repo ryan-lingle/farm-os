@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  MapPin, 
-  FileText, 
-  Package, 
+import {
+  MapPin,
+  Package,
   ScrollText,
   ChevronDown,
   ChevronRight,
@@ -81,19 +80,6 @@ export function AppSidebar() {
                   >
                     <MapPin className="h-4 w-4" />
                     {open && <span>Locations</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Records */}
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink 
-                    to="/records" 
-                    className={getNavClasses(isActive('/records'))}
-                  >
-                    <FileText className="h-4 w-4" />
-                    {open && <span>Records</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
