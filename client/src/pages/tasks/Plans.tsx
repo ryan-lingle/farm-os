@@ -40,6 +40,14 @@ import {
 import { format } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
 
+// Strip HTML tags and truncate text for summaries
+function stripHtmlAndTruncate(html: string, maxLength: number = 120): string {
+  // Remove HTML tags
+  const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trim() + '...';
+}
+
 // Status badge colors
 const statusColors: Record<PlanStatus, { bg: string; text: string }> = {
   planned: { bg: 'bg-slate-100', text: 'text-slate-600' },
@@ -111,7 +119,9 @@ function PlanCard({ plan }: { plan: Plan }) {
           </div>
         </div>
         {plan.description && (
-          <CardDescription className="mt-1">{plan.description}</CardDescription>
+          <CardDescription className="mt-1 line-clamp-2">
+            {stripHtmlAndTruncate(plan.description)}
+          </CardDescription>
         )}
       </CardHeader>
       <CardContent>
