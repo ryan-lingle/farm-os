@@ -22,12 +22,8 @@ export default function Tasks() {
   const { plans } = usePlans();
   const { cycles } = useCycles();
 
-  const handleTaskClick = (task: Task) => {
-    setSelectedTaskId(task.id);
-    setDetailPanelOpen(true);
-  };
-
-  const handleTaskEdit = (task: Task) => {
+  // Quick edit opens side panel (used by dropdown menu)
+  const handleQuickEdit = (task: Task) => {
     setSelectedTaskId(task.id);
     setDetailPanelOpen(true);
   };
@@ -91,8 +87,7 @@ export default function Tasks() {
             plans={plans}
             cycles={cycles}
             groupBy="state"
-            onTaskClick={handleTaskClick}
-            onTaskEdit={handleTaskEdit}
+            onTaskEdit={handleQuickEdit}
             onAddTask={handleAddTask}
             emptyMessage="No tasks found. Create your first task above!"
           />
@@ -104,12 +99,12 @@ export default function Tasks() {
         )}
       </div>
 
-      {/* Task detail panel */}
+      {/* Task detail panel (quick edit) */}
       <TaskDetailPanel
         taskId={selectedTaskId}
         open={detailPanelOpen}
         onOpenChange={setDetailPanelOpen}
-        onTaskSelect={handleTaskClick}
+        onTaskSelect={handleQuickEdit}
       />
     </div>
   );

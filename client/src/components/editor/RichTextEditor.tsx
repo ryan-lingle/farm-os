@@ -9,6 +9,8 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -19,6 +21,7 @@ import {
   Code,
   List,
   ListOrdered,
+  ListTodo,
   Quote,
   Heading1,
   Heading2,
@@ -61,6 +64,7 @@ function ToolbarButton({ onClick, isActive, disabled, children, title }: Toolbar
         isActive && 'bg-accent text-accent-foreground'
       )}
       onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
       disabled={disabled}
       title={title}
     >
@@ -199,6 +203,13 @@ function EditorToolbar({ editor, minimal = false }: EditorToolbarProps) {
         <ListOrdered className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton
+        onClick={() => editor.chain().focus().toggleTaskList().run()}
+        isActive={editor.isActive('taskList')}
+        title="Task List"
+      >
+        <ListTodo className="h-4 w-4" />
+      </ToolbarButton>
+      <ToolbarButton
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
         isActive={editor.isActive('blockquote')}
         title="Quote"
@@ -271,6 +282,17 @@ export function RichTextEditor({
         placeholder,
       }),
       Typography,
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'not-prose pl-0 list-none',
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: 'flex items-start gap-2 my-1',
+        },
+      }),
     ],
     content,
     editable,
