@@ -37,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ReferenceCountBadges } from '@/components/BackReferences';
 import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -382,6 +383,11 @@ export default function PlanDetail() {
               )}
             </div>
           )}
+
+          {/* Back-references - other plans that reference this one */}
+          <ReferenceCountBadges
+            referencingPlanCount={plan.referencingPlanCount}
+          />
         </div>
       </div>
 

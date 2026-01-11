@@ -45,4 +45,35 @@ class LocationSerializer
   attribute :total_asset_count do |location|
     location.all_assets.count
   end
+
+  # Back-reference counts (entities that mention this location)
+  attribute :referencing_task_count do |location|
+    location.task_locations.count
+  end
+
+  attribute :referencing_plan_count do |location|
+    location.plan_locations.count
+  end
+
+  # Actual referencing entities for building indexes
+  attribute :referencing_tasks do |location|
+    location.referencing_tasks.limit(20).map do |task|
+      {
+        id: task.id,
+        title: task.title,
+        state: task.state,
+        plan_id: task.plan_id
+      }
+    end
+  end
+
+  attribute :referencing_plans do |location|
+    location.referencing_plans.limit(20).map do |plan|
+      {
+        id: plan.id,
+        name: plan.name,
+        status: plan.status
+      }
+    end
+  end
 end

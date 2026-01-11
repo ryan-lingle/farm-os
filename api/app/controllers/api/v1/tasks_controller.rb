@@ -93,6 +93,9 @@ module Api
             end
           end
 
+          # Sync entity references from description HTML
+          ReferenceSyncService.sync_references(task, task.description) if task.description.present?
+
           render json: TaskSerializer.new(task.reload).serializable_hash, status: :created
         else
           render_jsonapi_errors(task.errors, status: :unprocessable_entity)
@@ -123,6 +126,11 @@ module Api
             params_log_ids.each do |log_id|
               @task.task_logs.create(log_id: log_id)
             end
+          end
+
+          # Sync entity references from description HTML (if description was updated)
+          if @task.description.present?
+            ReferenceSyncService.sync_references(@task, @task.description)
           end
 
           render json: TaskSerializer.new(@task.reload).serializable_hash

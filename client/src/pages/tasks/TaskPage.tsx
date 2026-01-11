@@ -45,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { BackReferences } from '@/components/BackReferences';
 import { format } from 'date-fns';
 
 // State options with colors
@@ -420,6 +421,16 @@ export default function TaskPage() {
                   />
                 </div>
               </div>
+
+              {/* Back References - plans that reference this task */}
+              {(task.referencingPlanCount ?? 0) > 0 && (
+                <div className="pt-4 border-t">
+                  <BackReferences
+                    entityType="task"
+                    referencingPlanCount={task.referencingPlanCount}
+                  />
+                </div>
+              )}
 
               {/* Metadata - subtle footer */}
               <div className="pt-4 text-xs text-muted-foreground/70 space-y-1">

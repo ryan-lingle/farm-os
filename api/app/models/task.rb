@@ -8,13 +8,19 @@ class Task < ApplicationRecord
   belongs_to :plan
   belongs_to :cycle, optional: true
 
-  # Many-to-many associations via join tables
+  # Many-to-many associations via join tables (entity references from mentions)
   has_many :task_assets, dependent: :destroy
   has_many :assets, through: :task_assets
   has_many :task_locations, dependent: :destroy
   has_many :locations, through: :task_locations
   has_many :task_logs, dependent: :destroy
   has_many :logs, through: :task_logs
+  has_many :task_plan_references, dependent: :destroy
+  has_many :referenced_plans, through: :task_plan_references, source: :plan
+
+  # Back-references (plans that mention this task)
+  has_many :plan_task_references, dependent: :destroy
+  has_many :referencing_plans, through: :plan_task_references, source: :plan
 
   # Relations (blocks, blocked_by, related, duplicate)
   has_many :outgoing_relations, class_name: 'TaskRelation', foreign_key: 'source_task_id', dependent: :destroy

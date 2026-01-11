@@ -8,6 +8,9 @@ Rails.application.routes.draw do
       root to: "base#index"
       get "schema", to: "base#schema"
 
+      # Search endpoint (for entity autocomplete/mentions)
+      get "search", to: "search#index"
+
       # Asset routes
       scope "assets" do
         get ":asset_type", to: "assets#index"

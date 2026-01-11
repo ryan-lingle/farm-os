@@ -9,6 +9,13 @@ class PlanSerializer
   has_many :children, serializer: PlanSerializer
   belongs_to :parent, serializer: PlanSerializer
 
+  # Entity references (from mentions in description)
+  has_many :assets
+  has_many :locations
+  has_many :logs
+  has_many :referenced_tasks, serializer: :task
+  has_many :referenced_plans, serializer: PlanSerializer
+
   # Computed attributes
   attribute :task_count do |object|
     object.task_count
@@ -58,6 +65,28 @@ class PlanSerializer
 
   attribute :direct_task_count do |object|
     object.direct_task_count
+  end
+
+  # Reference counts (for mentions)
+  attribute :asset_count do |object|
+    object.plan_assets.count
+  end
+
+  attribute :location_count do |object|
+    object.plan_locations.count
+  end
+
+  attribute :log_count do |object|
+    object.plan_logs.count
+  end
+
+  # Back-reference counts (entities that mention this plan)
+  attribute :referencing_task_count do |object|
+    object.task_plan_references.count
+  end
+
+  attribute :referencing_plan_count do |object|
+    object.incoming_plan_references.count
   end
 
   link :self do |object|

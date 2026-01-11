@@ -13,6 +13,7 @@ import { useAssets, useUpdateAsset, useDeleteAsset } from '@/hooks/useAssets';
 import { useLocations } from '@/hooks/useLocations';
 import { Asset } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BackReferences } from '@/components/BackReferences';
 import { toast } from 'sonner';
 
 export const AssetDetail: React.FC = () => {
@@ -319,6 +320,30 @@ export const AssetDetail: React.FC = () => {
               <div>
                 <p className="text-muted-foreground">Last Updated</p>
                 <p className="font-medium mt-1">{new Date(asset.attributes.updated).toLocaleDateString()}</p>
+              </div>
+            )}
+
+            {/* Back References - tasks and plans that reference this asset */}
+            {((asset.attributes as any).referencing_task_count > 0 ||
+              (asset.attributes as any).referencing_plan_count > 0) && (
+              <div className="pt-4 border-t">
+                <BackReferences
+                  entityType="asset"
+                  referencingTaskCount={(asset.attributes as any).referencing_task_count}
+                  referencingPlanCount={(asset.attributes as any).referencing_plan_count}
+                  referencingTasks={((asset.attributes as any).referencing_tasks || []).map((t: any) => ({
+                    id: t.id,
+                    name: t.title,
+                    type: 'task' as const,
+                    state: t.state,
+                  }))}
+                  referencingPlans={((asset.attributes as any).referencing_plans || []).map((p: any) => ({
+                    id: p.id,
+                    name: p.name,
+                    type: 'plan' as const,
+                    status: p.status,
+                  }))}
+                />
               </div>
             )}
           </CardContent>

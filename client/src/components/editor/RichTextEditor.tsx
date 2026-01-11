@@ -1,6 +1,7 @@
 /**
  * RichTextEditor - TipTap-based WYSIWYG editor
  * Linear-inspired invisible editor - toolbar appears on focus
+ * Supports entity mentions via slash commands (/asset, /location, etc.)
  */
 
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
@@ -32,6 +33,16 @@ import {
   Redo,
   Minus,
 } from 'lucide-react';
+import { MentionExtension, type MentionAttributes } from './extensions/MentionExtension';
+import {
+  SlashCommandExtension,
+  deactivateSlashCommand,
+  setSelectedType,
+  type SlashCommandState,
+} from './extensions/SlashCommandExtension';
+import { SlashCommandMenu } from './SlashCommandMenu';
+import { EntitySearchPopover } from './EntitySearchPopover';
+import type { EntityType } from '@/lib/api';
 
 interface RichTextEditorProps {
   content?: string;
@@ -256,6 +267,12 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [isToolbarActive, setIsToolbarActive] = useState(false);
+  const [slashCommandState, setSlashCommandState] = useState<SlashCommandState>({
+    active: false,
+    query: '',
+    range: null,
+    selectedType: null,
+  });
 
   // Show toolbar when editor is focused OR user is interacting with toolbar
   const showToolbar = isFocused || isToolbarActive;
@@ -292,6 +309,11 @@ export function RichTextEditor({
         HTMLAttributes: {
           class: 'flex items-start gap-2 my-1',
         },
+      }),
+      // Entity mention support
+      MentionExtension,
+      SlashCommandExtension.configure({
+        onStateChange: setSlashCommandState,
       }),
     ],
     content,
@@ -388,6 +410,62 @@ export function RichTextEditor({
     }
   }, [editable, editor]);
 
+  // Handle entity type selection from slash command menu
+  const handleSelectEntityType = useCallback(
+    (type: EntityType) => {
+      if (!editor) return;
+      setSelectedType(editor, type);
+    },
+    [editor]
+  );
+
+  // Handle mention insertion
+  const handleInsertMention = useCallback(
+    (attrs: MentionAttributes) => {
+      if (!editor) return;
+
+      // Insert the mention node
+      editor.commands.insertMention(attrs);
+
+      // Deactivate slash command mode
+      deactivateSlashCommand(editor);
+
+      // Focus editor and add a space after the mention
+      editor.chain().focus().insertContent(' ').run();
+    },
+    [editor]
+  );
+
+  // Handle canceling the search
+  const handleCancelSearch = useCallback(() => {
+    if (!editor) return;
+    deactivateSlashCommand(editor);
+    editor.commands.focus();
+  }, [editor]);
+
+  // Render the slash command menus
+  const renderSlashCommandMenus = () => {
+    if (!editor || !editable) return null;
+
+    return (
+      <>
+        {/* Entity type selection menu */}
+        <SlashCommandMenu
+          editor={editor}
+          state={slashCommandState}
+          onSelectType={handleSelectEntityType}
+        />
+        {/* Entity search popover */}
+        <EntitySearchPopover
+          editor={editor}
+          state={slashCommandState}
+          onInsertMention={handleInsertMention}
+          onCancel={handleCancelSearch}
+        />
+      </>
+    );
+  };
+
   // Minimal mode: no border, toolbar only on focus (Linear-style)
   if (minimal) {
     return (
@@ -404,6 +482,7 @@ export function RichTextEditor({
           </div>
         )}
         <EditorContent editor={editor} />
+        {renderSlashCommandMenus()}
       </div>
     );
   }
@@ -412,6 +491,7 @@ export function RichTextEditor({
     <div className={cn('border rounded-lg overflow-hidden bg-background', className)}>
       {editable && <EditorToolbar editor={editor} />}
       <EditorContent editor={editor} />
+      {renderSlashCommandMenus()}
     </div>
   );
 }

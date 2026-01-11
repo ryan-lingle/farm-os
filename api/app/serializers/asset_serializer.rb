@@ -30,6 +30,37 @@ class AssetSerializer
     object.children.count
   end
 
+  # Back-reference counts (entities that mention this asset)
+  attribute :referencing_task_count do |object|
+    object.task_assets.count
+  end
+
+  attribute :referencing_plan_count do |object|
+    object.plan_assets.count
+  end
+
+  # Actual referencing entities for building indexes
+  attribute :referencing_tasks do |object|
+    object.referencing_tasks.limit(20).map do |task|
+      {
+        id: task.id,
+        title: task.title,
+        state: task.state,
+        plan_id: task.plan_id
+      }
+    end
+  end
+
+  attribute :referencing_plans do |object|
+    object.referencing_plans.limit(20).map do |plan|
+      {
+        id: plan.id,
+        name: plan.name,
+        status: plan.status
+      }
+    end
+  end
+
   link :self do |object|
     "/api/v1/assets/#{object.asset_type || object.class.name.underscore.gsub('_asset', '')}/#{object.id}"
   end

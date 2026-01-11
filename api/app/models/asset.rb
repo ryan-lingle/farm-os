@@ -2,10 +2,16 @@ class Asset < ApplicationRecord
   # Associations
   has_and_belongs_to_many :logs
   belongs_to :current_location, class_name: 'Location', optional: true
-  
+
   # Hierarchy - self-referential associations
   belongs_to :parent, class_name: 'Asset', optional: true
   has_many :children, class_name: 'Asset', foreign_key: 'parent_id', dependent: :nullify
+
+  # Back-references (tasks/plans that mention this asset)
+  has_many :task_assets, dependent: :destroy
+  has_many :referencing_tasks, through: :task_assets, source: :task
+  has_many :plan_assets, dependent: :destroy
+  has_many :referencing_plans, through: :plan_assets, source: :plan
 
   # Validations
   validates :name, presence: true

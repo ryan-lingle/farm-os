@@ -278,3 +278,62 @@ ul[data-type="taskList"] li[data-checked="true"] > div {
 ul[data-type="taskList"] ul[data-type="taskList"] {
   margin-left: 1.5rem;
 }
+
+/* TipTap Slash Command Highlight */
+.slash-command-highlight {
+  @apply bg-muted rounded px-0.5;
+}
+
+/* TipTap Mention Node Styles (for rendered HTML outside editor) */
+span[data-mention-type] {
+  @apply inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-sm font-medium;
+  @apply cursor-pointer hover:opacity-80 transition-opacity;
+  @apply border;
+}
+
+/* Mention colors by type */
+span[data-mention-type="asset"],
+span[data-mention-type="animal"],
+span[data-mention-type="plant"],
+span[data-mention-type="equipment"],
+span[data-mention-type="structure"],
+span[data-mention-type="material"],
+span[data-mention-type="land"] {
+  @apply bg-amber-50 text-amber-700 border-amber-200;
+}
+
+span[data-mention-type="plant"] {
+  @apply bg-green-50 text-green-700 border-green-200;
+}
+
+span[data-mention-type="equipment"] {
+  @apply bg-orange-50 text-orange-700 border-orange-200;
+}
+
+span[data-mention-type="structure"] {
+  @apply bg-stone-50 text-stone-700 border-stone-200;
+}
+
+span[data-mention-type="material"] {
+  @apply bg-yellow-50 text-yellow-700 border-yellow-200;
+}
+
+span[data-mention-type="land"] {
+  @apply bg-lime-50 text-lime-700 border-lime-200;
+}
+
+span[data-mention-type="location"] {
+  @apply bg-blue-50 text-blue-700 border-blue-200;
+}
+
+span[data-mention-type="task"] {
+  @apply bg-purple-50 text-purple-700 border-purple-200;
+}
+
+span[data-mention-type="plan"] {
+  @apply bg-emerald-50 text-emerald-700 border-emerald-200;
+}
+
+span[data-mention-type="log"] {
+  @apply bg-slate-50 text-slate-700 border-slate-200;
+}

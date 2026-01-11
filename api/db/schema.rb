@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_12_000002) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_12_000008) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -110,6 +110,56 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000002) do
     t.index ["to_location_id"], name: "index_logs_on_to_location_id"
   end
 
+  create_table "plan_assets", force: :cascade do |t|
+    t.bigint "plan_id", null: false
+    t.bigint "asset_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["asset_id"], name: "index_plan_assets_on_asset_id"
+    t.index ["plan_id", "asset_id"], name: "index_plan_assets_on_plan_id_and_asset_id", unique: true
+    t.index ["plan_id"], name: "index_plan_assets_on_plan_id"
+  end
+
+  create_table "plan_locations", force: :cascade do |t|
+    t.bigint "plan_id", null: false
+    t.bigint "location_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["location_id"], name: "index_plan_locations_on_location_id"
+    t.index ["plan_id", "location_id"], name: "index_plan_locations_on_plan_id_and_location_id", unique: true
+    t.index ["plan_id"], name: "index_plan_locations_on_plan_id"
+  end
+
+  create_table "plan_logs", force: :cascade do |t|
+    t.bigint "plan_id", null: false
+    t.bigint "log_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["log_id"], name: "index_plan_logs_on_log_id"
+    t.index ["plan_id", "log_id"], name: "index_plan_logs_on_plan_id_and_log_id", unique: true
+    t.index ["plan_id"], name: "index_plan_logs_on_plan_id"
+  end
+
+  create_table "plan_plan_references", force: :cascade do |t|
+    t.bigint "source_plan_id", null: false
+    t.bigint "target_plan_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["source_plan_id", "target_plan_id"], name: "idx_on_source_plan_id_target_plan_id_fbe836bc31", unique: true
+    t.index ["source_plan_id"], name: "index_plan_plan_references_on_source_plan_id"
+    t.index ["target_plan_id"], name: "index_plan_plan_references_on_target_plan_id"
+  end
+
+  create_table "plan_task_references", force: :cascade do |t|
+    t.bigint "plan_id", null: false
+    t.bigint "task_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["plan_id", "task_id"], name: "index_plan_task_references_on_plan_id_and_task_id", unique: true
+    t.index ["plan_id"], name: "index_plan_task_references_on_plan_id"
+    t.index ["task_id"], name: "index_plan_task_references_on_task_id"
+  end
+
   create_table "plans", force: :cascade do |t|
     t.string "name", null: false
     t.text "description"
@@ -177,6 +227,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000002) do
     t.index ["task_id"], name: "index_task_logs_on_task_id"
   end
 
+  create_table "task_plan_references", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "plan_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["plan_id"], name: "index_task_plan_references_on_plan_id"
+    t.index ["task_id", "plan_id"], name: "index_task_plan_references_on_task_id_and_plan_id", unique: true
+    t.index ["task_id"], name: "index_task_plan_references_on_task_id"
+  end
+
   create_table "task_relations", force: :cascade do |t|
     t.bigint "source_task_id", null: false
     t.bigint "target_task_id", null: false
@@ -225,6 +285,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000002) do
   add_foreign_key "locations", "locations", column: "parent_id"
   add_foreign_key "logs", "locations", column: "from_location_id"
   add_foreign_key "logs", "locations", column: "to_location_id"
+  add_foreign_key "plan_assets", "assets"
+  add_foreign_key "plan_assets", "plans"
+  add_foreign_key "plan_locations", "locations"
+  add_foreign_key "plan_locations", "plans"
+  add_foreign_key "plan_logs", "logs"
+  add_foreign_key "plan_logs", "plans"
+  add_foreign_key "plan_plan_references", "plans", column: "source_plan_id"
+  add_foreign_key "plan_plan_references", "plans", column: "target_plan_id"
+  add_foreign_key "plan_task_references", "plans"
+  add_foreign_key "plan_task_references", "tasks"
   add_foreign_key "plans", "plans", column: "parent_id"
   add_foreign_key "quantities", "logs"
   add_foreign_key "task_assets", "assets"
@@ -233,6 +303,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000002) do
   add_foreign_key "task_locations", "tasks"
   add_foreign_key "task_logs", "logs"
   add_foreign_key "task_logs", "tasks"
+  add_foreign_key "task_plan_references", "plans"
+  add_foreign_key "task_plan_references", "tasks"
   add_foreign_key "task_relations", "tasks", column: "source_task_id"
   add_foreign_key "task_relations", "tasks", column: "target_task_id"
   add_foreign_key "tasks", "cycles"

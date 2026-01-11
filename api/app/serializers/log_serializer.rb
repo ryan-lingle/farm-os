@@ -14,4 +14,13 @@ class LogSerializer
   attribute :is_movement do |log|
     log.movement_log?
   end
+
+  # Back-reference counts (entities that mention this log)
+  attribute :referencing_task_count do |log|
+    log.task_logs.count
+  end
+
+  attribute :referencing_plan_count do |log|
+    log.plan_logs.count
+  end
 end

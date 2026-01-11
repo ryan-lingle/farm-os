@@ -22,7 +22,7 @@ import {
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Task, TaskState, useUpdateTask } from '@/hooks/useTasks';
 import { Plan } from '@/hooks/usePlans';
-import { Cycle } from '@/hooks/useCycles';
+import { useCycles, Cycle } from '@/hooks/useCycles';
 import { TaskListItem } from './TaskListItem';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -32,7 +32,6 @@ import { format } from 'date-fns';
 interface TaskListProps {
   tasks: Task[];
   plans?: Plan[];
-  cycles?: Cycle[];
   groupBy?: 'state' | 'none';
   onTaskClick?: (task: Task) => void;
   onTaskEdit?: (task: Task) => void;
@@ -253,7 +252,6 @@ function CycleGroup({
 export function TaskList({
   tasks,
   plans,
-  cycles = [],
   groupBy = 'state',
   onTaskClick,
   onTaskEdit,
@@ -262,6 +260,7 @@ export function TaskList({
 }: TaskListProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const updateTask = useUpdateTask();
+  const { cycles } = useCycles();
 
   // Configure sensors for drag detection
   const sensors = useSensors(

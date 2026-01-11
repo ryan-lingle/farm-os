@@ -1221,5 +1221,78 @@ export const conversationsApi = {
   },
 };
 
+// ===========================
+// Search API (Entity Autocomplete)
+// ===========================
+export type EntityType = 'asset' | 'location' | 'task' | 'plan' | 'log';
+
+export interface SearchResult {
+  type: EntityType;
+  id: number;
+  name: string;
+  icon: string;
+  url: string;
+  // Type-specific fields
+  asset_type?: string;
+  location_type?: string;
+  state?: string;
+  status?: string;
+  log_type?: string;
+}
+
+export interface SearchResponse {
+  data: SearchResult[];
+  meta: {
+    query: string;
+    types: string[];
+    total: number;
+  };
+}
+
+export const searchApi = {
+  /**
+   * Search entities across multiple types for autocomplete/mentions
+   * @param query - Search query (min 1 character)
+   * @param types - Entity types to search (default: all)
+   * @param limit - Max results (default: 10, max: 50)
+   */
+  search: async (query: string, types?: EntityType[], limit = 10): Promise<SearchResponse> => {
+    const params = new URLSearchParams({ q: query });
+
+    if (types && types.length > 0) {
+      params.append('types', types.join(','));
+    }
+
+    if (limit !== 10) {
+      params.append('limit', limit.toString());
+    }
+
+    return fetchApi<SearchResponse>(`/api/v1/search?${params.toString()}`);
+  },
+
+  /**
+   * Search for a specific entity type
+   */
+  searchAssets: async (query: string, limit = 10) => {
+    return searchApi.search(query, ['asset'], limit);
+  },
+
+  searchLocations: async (query: string, limit = 10) => {
+    return searchApi.search(query, ['location'], limit);
+  },
+
+  searchTasks: async (query: string, limit = 10) => {
+    return searchApi.search(query, ['task'], limit);
+  },
+
+  searchPlans: async (query: string, limit = 10) => {
+    return searchApi.search(query, ['plan'], limit);
+  },
+
+  searchLogs: async (query: string, limit = 10) => {
+    return searchApi.search(query, ['log'], limit);
+  },
+};
+
 export { ApiError };
 

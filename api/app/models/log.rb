@@ -26,6 +26,12 @@ class Log < ApplicationRecord
   # Facts emitted from this log
   has_many :facts, dependent: :nullify
 
+  # Back-references (tasks/plans that mention this log)
+  has_many :task_logs, dependent: :destroy
+  has_many :referencing_tasks, through: :task_logs, source: :task
+  has_many :plan_logs, dependent: :destroy
+  has_many :referencing_plans, through: :plan_logs, source: :plan
+
   accepts_nested_attributes_for :quantities, allow_destroy: true
 
   # Validations

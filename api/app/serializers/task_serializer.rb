@@ -61,6 +61,11 @@ class TaskSerializer
     object.incoming_relations.blocks.count
   end
 
+  # Back-reference counts (plans that mention this task)
+  attribute :referencing_plan_count do |object|
+    object.plan_task_references.count
+  end
+
   link :self do |object|
     "/api/v1/tasks/#{object.id}"
   end

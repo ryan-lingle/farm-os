@@ -51,7 +51,10 @@ module Api
         plan = Plan.new(plan_params)
 
         if plan.save
-          render json: PlanSerializer.new(plan).serializable_hash, status: :created
+          # Sync entity references from description HTML
+          ReferenceSyncService.sync_references(plan, plan.description) if plan.description.present?
+
+          render json: PlanSerializer.new(plan.reload).serializable_hash, status: :created
         else
           render_jsonapi_errors(plan.errors, status: :unprocessable_entity)
         end
@@ -59,7 +62,12 @@ module Api
 
       def update
         if @plan.update(plan_params)
-          render json: PlanSerializer.new(@plan).serializable_hash
+          # Sync entity references from description HTML
+          if @plan.description.present?
+            ReferenceSyncService.sync_references(@plan, @plan.description)
+          end
+
+          render json: PlanSerializer.new(@plan.reload).serializable_hash
         else
           render_jsonapi_errors(@plan.errors, status: :unprocessable_entity)
         end

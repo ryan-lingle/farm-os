@@ -1,13 +1,19 @@
 # app/models/location.rb
 class Location < ApplicationRecord
-  # Associations  
+  # Associations
   has_many :assets, foreign_key: 'current_location_id', dependent: :nullify
   has_many :outgoing_movements, class_name: 'Log', foreign_key: 'from_location_id', dependent: :nullify
   has_many :incoming_movements, class_name: 'Log', foreign_key: 'to_location_id', dependent: :nullify
-  
+
   # Hierarchy - self-referential associations
   belongs_to :parent, class_name: 'Location', optional: true
   has_many :children, class_name: 'Location', foreign_key: 'parent_id', dependent: :nullify
+
+  # Back-references (tasks/plans that mention this location)
+  has_many :task_locations, dependent: :destroy
+  has_many :referencing_tasks, through: :task_locations, source: :task
+  has_many :plan_locations, dependent: :destroy
+  has_many :referencing_plans, through: :plan_locations, source: :plan
 
   validates :name, presence: true
   validates :location_type, inclusion: { in: %w[point polygon],

@@ -7,6 +7,24 @@ class Plan < ApplicationRecord
   has_many :children, class_name: 'Plan', foreign_key: :parent_id, dependent: :nullify
   has_many :tasks, dependent: :nullify
 
+  # Entity references (from mentions in description)
+  has_many :plan_assets, dependent: :destroy
+  has_many :assets, through: :plan_assets
+  has_many :plan_locations, dependent: :destroy
+  has_many :locations, through: :plan_locations
+  has_many :plan_logs, dependent: :destroy
+  has_many :logs, through: :plan_logs
+  has_many :plan_task_references, dependent: :destroy
+  has_many :referenced_tasks, through: :plan_task_references, source: :task
+  has_many :outgoing_plan_references, class_name: 'PlanPlanReference', foreign_key: :source_plan_id, dependent: :destroy
+  has_many :referenced_plans, through: :outgoing_plan_references, source: :target_plan
+
+  # Back-references (plans/tasks that mention this plan)
+  has_many :incoming_plan_references, class_name: 'PlanPlanReference', foreign_key: :target_plan_id, dependent: :destroy
+  has_many :referencing_plans, through: :incoming_plan_references, source: :source_plan
+  has_many :task_plan_references, dependent: :destroy
+  has_many :referencing_tasks, through: :task_plan_references, source: :task
+
   # Validations
   validates :name, presence: true
   validates :status, presence: true, inclusion: { in: STATUSES }
