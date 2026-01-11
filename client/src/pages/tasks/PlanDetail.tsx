@@ -2,12 +2,13 @@
  * PlanDetail page - Show plan details and its tasks
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePlan, useUpdatePlan, useDeletePlan, PlanStatus } from '@/hooks/usePlans';
 import { useTasks, Task, TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { useCreateConversation } from '@/hooks/useConversations';
 import { TaskList, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
+import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -130,14 +131,6 @@ function EditPlanDialog({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
               <Select value={status} onValueChange={(v) => setStatus(v as PlanStatus)}>
                 <SelectTrigger>
@@ -196,10 +189,28 @@ export default function PlanDetail() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [description, setDescription] = useState('');
+
+  // Sync local description state with plan data
+  useEffect(() => {
+    if (plan) {
+      setDescription(plan.description || '');
+    }
+  }, [plan]);
+
+  // Handle description changes
+  const handleDescriptionChange = useCallback((html: string) => {
+    setDescription(html);
+  }, []);
+
+  const handleDescriptionBlur = useCallback(() => {
+    if (plan && description !== (plan.description || '')) {
+      updatePlan.mutate({ id: plan.id, updates: { description } });
+    }
+  }, [plan, description, updatePlan]);
 
   const handleTaskClick = (task: Task) => {
-    setSelectedTaskId(task.id);
-    setDetailPanelOpen(true);
+    navigate(`/tasks/${task.id}`);
   };
 
   const handleTaskEdit = (task: Task) => {
@@ -285,9 +296,6 @@ export default function PlanDetail() {
                 {statusLabels[plan.status]}
               </Badge>
             </div>
-            {plan.description && (
-              <p className="text-muted-foreground mt-1 ml-9">{plan.description}</p>
-            )}
           </div>
           <div className="flex items-center gap-2">
             {/* Quick status actions */}
@@ -379,6 +387,18 @@ export default function PlanDetail() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
+        {/* Plan Description - Rich Text Editor */}
+        <div className="mb-6">
+          <RichTextEditor
+            content={description}
+            onChange={handleDescriptionChange}
+            onBlur={handleDescriptionBlur}
+            placeholder="Add a plan description, notes, or documentation..."
+            className="min-h-[120px]"
+            minimal
+          />
+        </div>
+
         {/* Quick create */}
         <TaskQuickCreate
           className="mb-6"
