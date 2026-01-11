@@ -45,6 +45,7 @@ Rails.application.routes.draw do
         collection do
           post :generate
           get :current
+          post :rollover
         end
       end
       resources :task_relations, only: [ :index, :show, :create, :destroy ]

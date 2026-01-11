@@ -9,6 +9,43 @@ FARM_API_URL = os.getenv("FARM_API_URL", "http://localhost:3005/api/v1")
 # Create an MCP server
 mcp = FastMCP("farmAPI")
 
+# ============================================================================
+# TASK PLANNING SYSTEM - IMPORTANT RULES
+# ============================================================================
+#
+# This system uses a LINEAR-INSPIRED approach to task management:
+#
+# 1. PLANS = High-level projects or initiatives
+#    - Example: "Orchard and Garden Layout", "Fence Installation", "Chicken Coop Build"
+#    - Plans represent WHAT you're working toward
+#    - Plans should NOT be time-based (don't create "January Plan", "February Plan")
+#    - Plans can have sub-plans for organizing related work within a project
+#
+# 2. CYCLES = Time-based containers for scheduling
+#    - Cycles are monthly periods (e.g., "January 2026", "February 2026")
+#    - Cycles represent WHEN tasks should be worked on
+#    - Tasks are assigned to cycles based on their target_date
+#    - Think of cycles like sprints in agile - time-boxed periods for work
+#    - ROLLOVER: Incomplete tasks automatically roll over to the next cycle
+#      (just like Linear) - this happens when fetching the current cycle
+#
+# 3. TASKS = Individual work items
+#    - Every task MUST belong to a Plan (the project it's part of)
+#    - Tasks OPTIONALLY belong to a Cycle (when to work on it)
+#    - Tasks have a target_date which determines their cycle assignment
+#
+# CRITICAL: DO NOT create sub-plans for different time periods!
+# ❌ WRONG: Creating "January 2026 - Fence Planning" as a sub-plan
+# ✓ RIGHT: Create tasks in "Fence Installation" plan, assign to January 2026 cycle
+#
+# When creating tasks for a project:
+# 1. Create ONE plan for the entire project
+# 2. Create all tasks within that plan
+# 3. Set target_dates on tasks
+# 4. Tasks will automatically show up in the appropriate monthly cycle
+#
+# ============================================================================
+
 
 def _api_call(endpoint: str, method: str = "GET", params: dict = None, data: dict = None) -> dict:
     """Internal helper for API calls."""
@@ -882,14 +919,22 @@ def create_task(
     """
     Create a new task. Every task must belong to a plan.
 
+    Tasks use TWO organizational dimensions:
+    1. plan_id = WHAT project this task is part of (required)
+    2. cycle_id = WHEN this task should be worked on (optional, based on target_date)
+
+    Set target_date to indicate when the task should be completed. The task will
+    automatically appear in the cycle that contains that date (e.g., a task with
+    target_date="2026-02-15" belongs in the "February 2026" cycle).
+
     Args:
         title: Task title (required)
-        plan_id: Plan ID to assign task to (required)
+        plan_id: Plan ID - the project this task belongs to (required)
         description: Task description
         state: Initial state - 'backlog', 'todo', 'in_progress', 'done', 'cancelled' (default: backlog)
         estimate: Time estimate in minutes
-        target_date: Target completion date (ISO format)
-        cycle_id: Cycle to schedule task in
+        target_date: Target completion date (ISO format) - determines which cycle the task belongs to
+        cycle_id: Cycle to schedule task in (usually auto-assigned based on target_date)
         parent_id: Parent task ID (for subtasks)
         asset_ids: List of related asset IDs
         location_ids: List of related location IDs
@@ -1109,15 +1154,22 @@ def create_plan(
     parent_id: int = None
 ) -> dict:
     """
-    Create a new plan. Plans can be nested within other plans.
+    Create a new plan. Plans represent high-level projects or initiatives.
+
+    IMPORTANT: Plans should represent PROJECTS, not time periods!
+    - ✓ GOOD: "Orchard and Garden Layout", "Fence Installation", "Chicken Coop Build"
+    - ✗ BAD: "January 2026 Tasks", "February Plan", "Week 1 Sprint"
+
+    For time-based scheduling, use CYCLES instead. Tasks belong to a Plan (the project)
+    and are scheduled into Cycles (the time period) via their target_date.
 
     Args:
-        name: Plan name (required)
+        name: Plan name - should be a project/initiative name, NOT a time period
         description: Plan description
         status: Initial status - 'planned', 'active', 'completed', 'cancelled' (default: planned)
         start_date: Plan start date (ISO format)
         target_date: Target completion date (ISO format)
-        parent_id: Parent plan ID (for nested plans)
+        parent_id: Parent plan ID (only for sub-projects, NOT for time-based breakdown)
     """
     attributes = {"name": name, "status": status}
 
@@ -1234,8 +1286,29 @@ def get_current_cycle() -> dict:
     """
     Get the current active cycle based on today's date.
     Returns the cycle where today falls between start_date and end_date.
+
+    NOTE: This also automatically rolls over any incomplete tasks from past
+    cycles to the current cycle (Linear-style behavior).
     """
     return _api_call("cycles/current")
+
+
+@mcp.tool()
+def rollover_tasks() -> dict:
+    """
+    Manually trigger task rollover from past cycles to the current cycle.
+
+    This mimics Linear's behavior where incomplete tasks automatically
+    move forward when a cycle ends. Tasks that are not done or cancelled
+    will be moved from any past cycle to the current cycle.
+
+    NOTE: This is also automatically triggered when calling get_current_cycle().
+    Use this if you want to explicitly trigger rollover or check what would be rolled over.
+
+    Returns:
+        A dict with rolled_over count and list of tasks that were moved.
+    """
+    return _api_call("cycles/rollover", method="POST")
 
 
 @mcp.tool()

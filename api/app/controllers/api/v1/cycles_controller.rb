@@ -72,10 +72,35 @@ module Api
         render json: CycleSerializer.new(cycles).serializable_hash, status: :created
       end
 
-      # Get current cycle
+      # Get current cycle (auto-rolls over incomplete tasks from past cycles)
       def current
+        # Auto-rollover incomplete tasks from past cycles
+        rollover_result = Task.rollover_from_past_cycles!
+
         cycle = Cycle.current_cycle
-        render json: CycleSerializer.new(cycle).serializable_hash
+        response = CycleSerializer.new(cycle).serializable_hash
+
+        # Include rollover info in meta
+        if rollover_result[:rolled_over] > 0
+          response[:meta] ||= {}
+          response[:meta][:rollover] = rollover_result
+        end
+
+        render json: response
+      end
+
+      # Manually trigger task rollover from past cycles
+      def rollover
+        result = Task.rollover_from_past_cycles!
+
+        render json: {
+          success: true,
+          rolled_over: result[:rolled_over],
+          tasks: result[:tasks],
+          message: result[:rolled_over] > 0 ?
+            "#{result[:rolled_over]} task(s) rolled over to current cycle" :
+            "No tasks needed to be rolled over"
+        }
       end
 
       private

@@ -35,6 +35,7 @@ class Task < ApplicationRecord
   scope :completed, -> { where(state: %w[done cancelled]) }
   scope :unscheduled, -> { where(cycle_id: nil) }
   scope :scheduled, -> { where.not(cycle_id: nil) }
+  scope :in_past_cycles, -> { joins(:cycle).merge(Cycle.past) }
 
   # Callbacks
   before_validation :set_defaults
@@ -142,6 +143,38 @@ class Task < ApplicationRecord
 
   def blocked?
     blocked_by.any? { |task| task.active? }
+  end
+
+  # Class methods for cycle management
+  class << self
+    # Roll over incomplete tasks from past cycles to the current cycle
+    # This mimics Linear's behavior where unfinished tasks automatically
+    # move forward when a cycle ends
+    def rollover_from_past_cycles!
+      current_cycle = Cycle.current_cycle
+      return { rolled_over: 0, tasks: [] } unless current_cycle
+
+      tasks_to_rollover = active.in_past_cycles
+      rolled_over_tasks = []
+
+      tasks_to_rollover.find_each do |task|
+        old_cycle_name = task.cycle&.name
+        task.update!(cycle: current_cycle)
+        rolled_over_tasks << {
+          id: task.id,
+          title: task.title,
+          from_cycle: old_cycle_name,
+          to_cycle: current_cycle.name
+        }
+      end
+
+      { rolled_over: rolled_over_tasks.count, tasks: rolled_over_tasks }
+    end
+
+    # Check if there are any tasks that need to be rolled over
+    def pending_rollover_count
+      active.in_past_cycles.count
+    end
   end
 
   private
