@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, TaskState, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
@@ -29,6 +30,7 @@ import {
   CheckCircle,
   Circle,
   GripVertical,
+  ExternalLink,
 } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 
@@ -67,8 +69,18 @@ export function TaskListItem({
   indent = 0,
 }: TaskListItemProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+
+  // Navigate to task detail page on click
+  const handleClick = () => {
+    if (onClick) {
+      onClick(task);
+    } else {
+      navigate(`/tasks/${task.id}`);
+    }
+  };
 
   // Drag and drop setup
   const {
@@ -115,7 +127,7 @@ export function TaskListItem({
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onClick?.(task)}
+      onClick={handleClick}
     >
       {/* Drag handle */}
       <div
@@ -201,6 +213,27 @@ export function TaskListItem({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/tasks/${task.id}`);
+              }}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open
+            </DropdownMenuItem>
+            {onEdit && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(task);
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Quick Edit
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
             {!isCompleted ? (
               <DropdownMenuItem
                 onClick={(e) => {
@@ -222,10 +255,6 @@ export function TaskListItem({
                 Reopen
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => onEdit?.(task)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Details
-            </DropdownMenuItem>
             <DropdownMenuItem>
               <ArrowRight className="h-4 w-4 mr-2" />
               Move to Plan

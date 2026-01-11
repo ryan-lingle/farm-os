@@ -930,7 +930,15 @@ def create_task(
     Args:
         title: Task title (required)
         plan_id: Plan ID - the project this task belongs to (required)
-        description: Task description
+        description: Task description in HTML format. Supports rich text including:
+            - Headings (<h1>, <h2>, <h3>)
+            - Text formatting (<strong>, <em>, <s>, <code>)
+            - Lists (<ul>, <ol>, <li>)
+            - Links (<a href="...">)
+            - Images (<img src="...">)
+            - Blockquotes (<blockquote>)
+            - Horizontal rules (<hr>)
+            Example: "<p>Install fence posts</p><ul><li>Mark positions</li><li>Dig holes</li></ul>"
         state: Initial state - 'backlog', 'todo', 'in_progress', 'done', 'cancelled' (default: backlog)
         estimate: Time estimate in minutes
         target_date: Target completion date (ISO format) - determines which cycle the task belongs to
@@ -978,7 +986,14 @@ def update_task(
     Args:
         task_id: The task ID to update
         title: New title
-        description: New description
+        description: New description in HTML format. Supports rich text including:
+            - Headings (<h1>, <h2>, <h3>)
+            - Text formatting (<strong>, <em>, <s>, <code>)
+            - Lists (<ul>, <ol>, <li>)
+            - Links (<a href="...">)
+            - Images (<img src="...">)
+            - Blockquotes (<blockquote>)
+            - Horizontal rules (<hr>)
         state: New state - 'backlog', 'todo', 'in_progress', 'done', 'cancelled'
         estimate: New time estimate in minutes
         target_date: New target date (ISO format)
