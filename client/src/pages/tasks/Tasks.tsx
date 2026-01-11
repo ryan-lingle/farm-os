@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTasks, Task, TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { usePlans } from '@/hooks/usePlans';
+import { useCycles } from '@/hooks/useCycles';
 import { TaskList, TaskFilters, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,6 +20,7 @@ export default function Tasks() {
 
   const { tasks, isLoading } = useTasks(filters);
   const { plans } = usePlans();
+  const { cycles } = useCycles();
 
   const handleTaskClick = (task: Task) => {
     setSelectedTaskId(task.id);
@@ -87,6 +89,7 @@ export default function Tasks() {
           <TaskList
             tasks={tasks}
             plans={plans}
+            cycles={cycles}
             groupBy="state"
             onTaskClick={handleTaskClick}
             onTaskEdit={handleTaskEdit}

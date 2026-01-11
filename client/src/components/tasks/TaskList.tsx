@@ -1,19 +1,38 @@
 /**
- * TaskList - Task list container with grouping by state
- * Linear-inspired collapsible sections
+ * TaskList - Task list container with Linear-style organization
+ * - In Progress: Tasks being worked on
+ * - Scheduled (by cycle): Tasks assigned to cycles, grouped by cycle
+ * - Backlog: Unscheduled tasks (no cycle)
+ * - Done/Cancelled: Completed tasks
+ * Supports drag-and-drop between state groups
  */
 
-import { useState } from 'react';
-import { Task, TaskState } from '@/hooks/useTasks';
+import { useState, useMemo } from 'react';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  closestCenter,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { Task, TaskState, useUpdateTask } from '@/hooks/useTasks';
 import { Plan } from '@/hooks/usePlans';
+import { Cycle } from '@/hooks/useCycles';
 import { TaskListItem } from './TaskListItem';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Calendar } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface TaskListProps {
   tasks: Task[];
   plans?: Plan[];
+  cycles?: Cycle[];
   groupBy?: 'state' | 'none';
   onTaskClick?: (task: Task) => void;
   onTaskEdit?: (task: Task) => void;
@@ -21,9 +40,7 @@ interface TaskListProps {
   emptyMessage?: string;
 }
 
-// State order and colors for grouping
-const stateOrder: TaskState[] = ['in_progress', 'todo', 'backlog', 'done', 'cancelled'];
-
+// State labels and colors
 const stateLabels: Record<TaskState, string> = {
   backlog: 'Backlog',
   todo: 'Todo',
@@ -40,32 +57,49 @@ const stateColors: Record<TaskState, string> = {
   cancelled: 'text-gray-500',
 };
 
-interface TaskGroupProps {
-  state: TaskState;
+interface DroppableGroupProps {
+  id: string;
+  title: string;
+  titleColor?: string;
+  icon?: React.ReactNode;
   tasks: Task[];
   plansMap?: Map<number, string>;
   onTaskClick?: (task: Task) => void;
   onTaskEdit?: (task: Task) => void;
-  onAddTask?: (state: TaskState) => void;
+  onAddTask?: () => void;
   defaultExpanded?: boolean;
+  dropData: { type: string; state?: TaskState; cycleId?: number };
 }
 
-function TaskGroup({
-  state,
+function DroppableGroup({
+  id,
+  title,
+  titleColor = 'text-foreground',
+  icon,
   tasks,
   plansMap,
   onTaskClick,
   onTaskEdit,
   onAddTask,
   defaultExpanded = true,
-}: TaskGroupProps) {
+  dropData,
+}: DroppableGroupProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  // Make this group a drop target
+  const { setNodeRef, isOver } = useDroppable({
+    id,
+    data: dropData,
+  });
 
   return (
     <div className="border-b border-border last:border-b-0">
       {/* Group header */}
       <div
-        className="flex items-center gap-2 px-4 py-2 bg-muted/30 hover:bg-muted/50 cursor-pointer select-none"
+        className={cn(
+          'flex items-center gap-2 px-4 py-2 bg-muted/30 hover:bg-muted/50 cursor-pointer select-none transition-colors',
+          isOver && 'bg-primary/10 ring-2 ring-primary ring-inset'
+        )}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {isExpanded ? (
@@ -73,43 +107,145 @@ function TaskGroup({
         ) : (
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         )}
-        <span className={cn('font-medium text-sm', stateColors[state])}>
-          {stateLabels[state]}
+        {icon}
+        <span className={cn('font-medium text-sm', titleColor)}>
+          {title}
         </span>
         <span className="text-xs text-muted-foreground">({tasks.length})</span>
         <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 opacity-0 group-hover:opacity-100"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddTask?.(state);
-          }}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
+        {onAddTask && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-0 group-hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddTask();
+            }}
+          >
+            <Plus className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+
+      {/* Tasks - droppable area */}
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'transition-colors min-h-[2px]',
+          isOver && 'bg-primary/5'
+        )}
+      >
+        {isExpanded && (
+          <SortableContext
+            items={tasks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {tasks.map((task) => (
+              <TaskListItem
+                key={task.id}
+                task={task}
+                planName={plansMap?.get(task.planId)}
+                onClick={onTaskClick}
+                onEdit={onTaskEdit}
+              />
+            ))}
+            {tasks.length === 0 && (
+              <div className="px-4 py-4 text-center text-sm text-muted-foreground">
+                No tasks
+              </div>
+            )}
+          </SortableContext>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Cycle group component with nested structure
+interface CycleGroupProps {
+  cycle: Cycle;
+  tasks: Task[];
+  plansMap?: Map<number, string>;
+  onTaskClick?: (task: Task) => void;
+  onTaskEdit?: (task: Task) => void;
+  defaultExpanded?: boolean;
+}
+
+function CycleGroup({
+  cycle,
+  tasks,
+  plansMap,
+  onTaskClick,
+  onTaskEdit,
+  defaultExpanded = true,
+}: CycleGroupProps) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  // Make this cycle a drop target
+  const { setNodeRef, isOver } = useDroppable({
+    id: `cycle-${cycle.id}`,
+    data: {
+      type: 'cycle',
+      cycleId: parseInt(cycle.id, 10),
+    },
+  });
+
+  // Display month name from startDate, fallback to cycle name
+  const displayName = cycle.startDate
+    ? format(new Date(cycle.startDate), 'MMMM yyyy')
+    : cycle.name;
+
+  return (
+    <div className="ml-4">
+      {/* Cycle header */}
+      <div
+        className={cn(
+          'flex items-center gap-2 px-4 py-2 bg-muted/50 border-y border-border cursor-pointer select-none transition-colors',
+          isOver && 'bg-primary/10'
+        )}
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        {isExpanded ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+        <Calendar className="h-4 w-4 text-amber-600" />
+        <span className="text-sm font-semibold text-foreground">{displayName}</span>
+        <span className="text-xs text-muted-foreground font-medium">({tasks.length})</span>
+        {cycle.isCurrent && (
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+            Current
+          </span>
+        )}
       </div>
 
       {/* Tasks */}
-      {isExpanded && (
-        <div>
-          {tasks.map((task) => (
-            <TaskListItem
-              key={task.id}
-              task={task}
-              planName={plansMap?.get(task.planId)}
-              onClick={onTaskClick}
-              onEdit={onTaskEdit}
-            />
-          ))}
-          {tasks.length === 0 && (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No tasks
-            </div>
-          )}
-        </div>
-      )}
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'transition-colors min-h-[2px] pl-4 border-l-2 border-muted ml-2',
+          isOver && 'bg-primary/5 border-l-primary'
+        )}
+      >
+        {isExpanded && (
+          <SortableContext
+            items={tasks.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {tasks.map((task) => (
+              <TaskListItem
+                key={task.id}
+                task={task}
+                planName={plansMap?.get(task.planId)}
+                onClick={onTaskClick}
+                onEdit={onTaskEdit}
+              />
+            ))}
+          </SortableContext>
+        )}
+      </div>
     </div>
   );
 }
@@ -117,16 +253,136 @@ function TaskGroup({
 export function TaskList({
   tasks,
   plans,
+  cycles = [],
   groupBy = 'state',
   onTaskClick,
   onTaskEdit,
   onAddTask,
   emptyMessage = 'No tasks found',
 }: TaskListProps) {
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const updateTask = useUpdateTask();
+
+  // Configure sensors for drag detection
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
   // Create a map of plan IDs to names for quick lookup
   const plansMap = new Map<number, string>(
     plans?.map((p) => [parseInt(p.id, 10), p.name]) || []
   );
+
+  // Create a map of cycle IDs to cycles
+  const cyclesMap = useMemo(() =>
+    new Map<number, Cycle>(cycles.map((c) => [parseInt(c.id, 10), c])),
+    [cycles]
+  );
+
+  // Organize tasks into groups
+  const organizedTasks = useMemo(() => {
+    const inProgress: Task[] = [];
+    const scheduledByCycle: Map<number, Task[]> = new Map();
+    const backlog: Task[] = [];
+    const done: Task[] = [];
+    const cancelled: Task[] = [];
+
+    for (const task of tasks) {
+      if (task.state === 'done') {
+        done.push(task);
+      } else if (task.state === 'cancelled') {
+        cancelled.push(task);
+      } else if (task.state === 'in_progress') {
+        inProgress.push(task);
+      } else if (task.cycleId) {
+        // Task is scheduled (has a cycle) - group by cycle
+        const cycleTasks = scheduledByCycle.get(task.cycleId) || [];
+        cycleTasks.push(task);
+        scheduledByCycle.set(task.cycleId, cycleTasks);
+      } else {
+        // Task is unscheduled (no cycle) - goes to backlog
+        backlog.push(task);
+      }
+    }
+
+    // Sort cycles by start date
+    const sortedCycleIds = Array.from(scheduledByCycle.keys()).sort((a, b) => {
+      const cycleA = cyclesMap.get(a);
+      const cycleB = cyclesMap.get(b);
+      if (!cycleA || !cycleB) return 0;
+      return new Date(cycleA.startDate).getTime() - new Date(cycleB.startDate).getTime();
+    });
+
+    return {
+      inProgress,
+      scheduledByCycle,
+      sortedCycleIds,
+      backlog,
+      done,
+      cancelled,
+    };
+  }, [tasks, cyclesMap]);
+
+  // Handle drag start
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const task = tasks.find((t) => t.id === active.id);
+    setActiveTask(task || null);
+  };
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveTask(null);
+
+    if (!over) return;
+
+    const activeTaskId = active.id as string;
+    const overId = over.id as string;
+    const task = tasks.find((t) => t.id === activeTaskId);
+
+    if (!task) return;
+
+    // Dropped on a state group
+    if (overId.startsWith('state-')) {
+      const newState = overId.replace('state-', '') as TaskState;
+
+      if (newState === 'backlog') {
+        // Moving to backlog removes cycle assignment
+        if (task.state !== 'backlog' || task.cycleId) {
+          updateTask.mutate({
+            id: activeTaskId,
+            updates: { state: 'backlog', cycleId: null },
+          });
+        }
+      } else if (task.state !== newState) {
+        updateTask.mutate({
+          id: activeTaskId,
+          updates: { state: newState },
+        });
+      }
+    }
+    // Dropped on a cycle group
+    else if (overId.startsWith('cycle-')) {
+      const newCycleId = parseInt(overId.replace('cycle-', ''), 10);
+
+      if (task.cycleId !== newCycleId) {
+        // Moving to a cycle sets state to 'todo' if currently in backlog
+        const updates: { cycleId: number; state?: TaskState } = { cycleId: newCycleId };
+        if (task.state === 'backlog') {
+          updates.state = 'todo';
+        }
+        updateTask.mutate({
+          id: activeTaskId,
+          updates,
+        });
+      }
+    }
+  };
 
   if (tasks.length === 0) {
     return (
@@ -158,40 +414,127 @@ export function TaskList({
     );
   }
 
-  // Group tasks by state
-  const groupedTasks = stateOrder.reduce(
-    (acc, state) => {
-      acc[state] = tasks.filter((t) => t.state === state);
-      return acc;
-    },
-    {} as Record<TaskState, Task[]>
-  );
-
-  // Only show groups that have tasks or are active states
-  const activeStates: TaskState[] = ['in_progress', 'todo', 'backlog'];
+  const { inProgress, scheduledByCycle, sortedCycleIds, backlog, done, cancelled } = organizedTasks;
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      {stateOrder.map((state) => {
-        const stateTasks = groupedTasks[state];
-        // Always show active states, only show done/cancelled if they have tasks
-        if (stateTasks.length === 0 && !activeStates.includes(state)) {
-          return null;
-        }
-        return (
-          <TaskGroup
-            key={state}
-            state={state}
-            tasks={stateTasks}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="border rounded-lg overflow-hidden">
+        {/* In Progress */}
+        {(inProgress.length > 0 || true) && (
+          <DroppableGroup
+            id="state-in_progress"
+            title="In Progress"
+            titleColor={stateColors.in_progress}
+            tasks={inProgress}
             plansMap={plansMap}
             onTaskClick={onTaskClick}
             onTaskEdit={onTaskEdit}
-            onAddTask={onAddTask}
-            defaultExpanded={activeStates.includes(state)}
+            defaultExpanded={true}
+            dropData={{ type: 'state', state: 'in_progress' }}
           />
-        );
-      })}
-    </div>
+        )}
+
+        {/* Scheduled (by cycle) */}
+        {sortedCycleIds.length > 0 && (
+          <div className="border-b border-border last:border-b-0">
+            <div className="flex items-center gap-2 px-4 py-2 bg-muted/30">
+              <Calendar className="h-4 w-4 text-amber-600" />
+              <span className={cn('font-medium text-sm', stateColors.todo)}>
+                Scheduled
+              </span>
+              <span className="text-xs text-muted-foreground">
+                ({sortedCycleIds.reduce((sum, id) => sum + (scheduledByCycle.get(id)?.length || 0), 0)})
+              </span>
+            </div>
+            {sortedCycleIds.map((cycleId) => {
+              const cycle = cyclesMap.get(cycleId);
+              const cycleTasks = scheduledByCycle.get(cycleId) || [];
+              // Create a fallback cycle if not found in cyclesMap
+              const displayCycle = cycle || {
+                id: String(cycleId),
+                name: `Cycle ${cycleId}`,
+                startDate: '',
+                endDate: '',
+                isCurrent: false,
+                isFuture: false,
+              } as Cycle;
+              return (
+                <CycleGroup
+                  key={cycleId}
+                  cycle={displayCycle}
+                  tasks={cycleTasks}
+                  plansMap={plansMap}
+                  onTaskClick={onTaskClick}
+                  onTaskEdit={onTaskEdit}
+                  defaultExpanded={displayCycle.isCurrent || displayCycle.isFuture || !cycle}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* Backlog (unscheduled) */}
+        <DroppableGroup
+          id="state-backlog"
+          title="Backlog"
+          titleColor={stateColors.backlog}
+          tasks={backlog}
+          plansMap={plansMap}
+          onTaskClick={onTaskClick}
+          onTaskEdit={onTaskEdit}
+          onAddTask={() => onAddTask?.('backlog')}
+          defaultExpanded={true}
+          dropData={{ type: 'state', state: 'backlog' }}
+        />
+
+        {/* Done */}
+        {done.length > 0 && (
+          <DroppableGroup
+            id="state-done"
+            title="Done"
+            titleColor={stateColors.done}
+            tasks={done}
+            plansMap={plansMap}
+            onTaskClick={onTaskClick}
+            onTaskEdit={onTaskEdit}
+            defaultExpanded={false}
+            dropData={{ type: 'state', state: 'done' }}
+          />
+        )}
+
+        {/* Cancelled */}
+        {cancelled.length > 0 && (
+          <DroppableGroup
+            id="state-cancelled"
+            title="Cancelled"
+            titleColor={stateColors.cancelled}
+            tasks={cancelled}
+            plansMap={plansMap}
+            onTaskClick={onTaskClick}
+            onTaskEdit={onTaskEdit}
+            defaultExpanded={false}
+            dropData={{ type: 'state', state: 'cancelled' }}
+          />
+        )}
+      </div>
+
+      {/* Drag overlay */}
+      <DragOverlay>
+        {activeTask ? (
+          <div className="bg-background border rounded-lg shadow-lg opacity-90">
+            <TaskListItem
+              task={activeTask}
+              planName={plansMap.get(activeTask.planId)}
+            />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 

@@ -17,7 +17,6 @@ import {
   Wrench,
   CheckSquare,
   FolderKanban,
-  CalendarDays,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -51,7 +50,6 @@ const logItems = [
 const taskItems = [
   { title: 'All Tasks', url: '/tasks', icon: CheckSquare },
   { title: 'Plans', url: '/tasks/plans', icon: FolderKanban },
-  { title: 'Cycles', url: '/tasks/cycles', icon: CalendarDays },
 ];
 
 export function AppSidebar() {

@@ -1,10 +1,11 @@
 /**
  * Chat panel component.
  * Main chat interface containing messages and input.
+ * Full-panel drop zone for image uploads.
  */
 
-import { useEffect, useRef } from 'react';
-import { Loader2, X, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, DragEvent } from 'react';
+import { Loader2, X, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessage } from './ChatMessage';
@@ -29,6 +30,9 @@ export function ChatPanel({
   onClear,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
+  const dragCounterRef = useRef(0);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -37,8 +41,59 @@ export function ChatPanel({
     }
   }, [messages, isLoading]);
 
+  const handleDragEnter = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+
+    // Check if dragging files
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const files = Array.from(e.dataTransfer.files).filter(file =>
+      file.type.startsWith('image/')
+    );
+
+    if (files.length > 0) {
+      setDroppedFiles(files);
+    }
+  }, []);
+
+  const handleExternalImagesProcessed = useCallback(() => {
+    setDroppedFiles([]);
+  }, []);
+
   return (
-    <div className="flex flex-col h-full bg-background border rounded-lg shadow-lg overflow-hidden">
+    <div
+      className="flex flex-col h-full bg-background border rounded-lg shadow-lg overflow-hidden relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
         <div className="flex items-center gap-2">
@@ -101,7 +156,22 @@ export function ChatPanel({
       )}
 
       {/* Input */}
-      <ChatInput onSend={onSend} disabled={isLoading} />
+      <ChatInput
+        onSend={onSend}
+        disabled={isLoading}
+        externalImages={droppedFiles}
+        onExternalImagesProcessed={handleExternalImagesProcessed}
+      />
+
+      {/* Drop overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-2 text-primary">
+            <Upload className="h-8 w-8" />
+            <span className="font-medium">Drop images here</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

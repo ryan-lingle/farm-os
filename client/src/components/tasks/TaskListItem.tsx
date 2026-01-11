@@ -1,12 +1,14 @@
 /**
  * TaskListItem - Single task row component (Linear-inspired design)
  * Dense, hover to reveal actions, inline completion
+ * Supports drag-and-drop for state changes
  */
 
 import { useState } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Task, TaskState, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -24,6 +26,9 @@ import {
   Trash2,
   Edit,
   ArrowRight,
+  CheckCircle,
+  Circle,
+  GripVertical,
 } from 'lucide-react';
 import { format, isPast, isToday } from 'date-fns';
 
@@ -65,16 +70,31 @@ export function TaskListItem({
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
+  // Drag and drop setup
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: task.id,
+    data: {
+      type: 'task',
+      task,
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    paddingLeft: `${16 + indent * 24}px`,
+  };
+
   const isCompleted = task.state === 'done' || task.state === 'cancelled';
   const isOverdue = task.targetDate && isPast(new Date(task.targetDate)) && !isCompleted;
   const isDueToday = task.targetDate && isToday(new Date(task.targetDate));
-
-  const handleCheckboxChange = (checked: boolean) => {
-    updateTask.mutate({
-      id: task.id,
-      updates: { state: checked ? 'done' : 'todo' },
-    });
-  };
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this task?')) {
@@ -86,23 +106,29 @@ export function TaskListItem({
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         'group flex items-center gap-3 px-4 py-2 border-b border-border/50 hover:bg-accent/50 transition-colors cursor-pointer',
-        isCompleted && 'opacity-60'
+        isCompleted && 'opacity-60',
+        isDragging && 'opacity-50 bg-accent shadow-lg z-50'
       )}
-      style={{ paddingLeft: `${16 + indent * 24}px` }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onClick?.(task)}
     >
-      {/* Checkbox for quick complete */}
-      <Checkbox
-        checked={isCompleted}
-        onCheckedChange={handleCheckboxChange}
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className={cn(
+          'shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-opacity',
+          isHovered ? 'opacity-100' : 'opacity-0'
+        )}
         onClick={(e) => e.stopPropagation()}
-        className="shrink-0"
-      />
-
+      >
+        <GripVertical className="h-4 w-4" />
+      </div>
       {/* Subtask indicator */}
       {(task.childCount ?? 0) > 0 && (
         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -175,9 +201,30 @@ export function TaskListItem({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {!isCompleted ? (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateTask.mutate({ id: task.id, updates: { state: 'done' } });
+                }}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Mark Done
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateTask.mutate({ id: task.id, updates: { state: 'todo' } });
+                }}
+              >
+                <Circle className="h-4 w-4 mr-2" />
+                Reopen
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => onEdit?.(task)}>
               <Edit className="h-4 w-4 mr-2" />
-              Edit
+              Edit Details
             </DropdownMenuItem>
             <DropdownMenuItem>
               <ArrowRight className="h-4 w-4 mr-2" />
