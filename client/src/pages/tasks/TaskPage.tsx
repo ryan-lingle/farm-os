@@ -231,23 +231,23 @@ export default function TaskPage() {
         <div className="max-w-5xl mx-auto p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Title */}
+            <div className="lg:col-span-2 space-y-4">
+              {/* Title - Large, editable like Linear */}
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={handleTitleBlur}
                 placeholder="Task title"
-                className="text-2xl font-bold border-none shadow-none px-0 focus-visible:ring-0 h-auto py-2"
+                className="text-3xl font-semibold border-none shadow-none px-0 focus-visible:ring-0 h-auto py-1 tracking-tight"
               />
 
-              {/* State badge */}
-              <div className="flex items-center gap-2">
+              {/* State badge - inline, minimal */}
+              <div className="flex items-center gap-3">
                 <Select value={task.state} onValueChange={handleStateChange}>
-                  <SelectTrigger className="w-auto border-none shadow-none p-0 h-auto">
+                  <SelectTrigger className="w-auto border-none shadow-none p-0 h-auto focus:ring-0">
                     <Badge
                       variant="outline"
-                      className={cn('cursor-pointer', currentState?.color)}
+                      className={cn('cursor-pointer text-xs', currentState?.color)}
                     >
                       {currentState?.label}
                     </Badge>
@@ -255,7 +255,7 @@ export default function TaskPage() {
                   <SelectContent>
                     {stateOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
-                        <Badge variant="outline" className={option.color}>
+                        <Badge variant="outline" className={cn('text-xs', option.color)}>
                           {option.label}
                         </Badge>
                       </SelectItem>
@@ -264,23 +264,19 @@ export default function TaskPage() {
                 </Select>
 
                 {task.isBlocked && (
-                  <Badge variant="destructive">Blocked</Badge>
+                  <Badge variant="destructive" className="text-xs">Blocked</Badge>
                 )}
               </div>
 
-              {/* Description Editor */}
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                  Description
-                </h3>
-                <RichTextEditor
-                  content={description}
-                  onChange={handleDescriptionChange}
-                  onBlur={handleDescriptionBlur}
-                  placeholder="Add a description... (supports rich text, images, and more)"
-                  className="min-h-[300px]"
-                />
-              </div>
+              {/* Description Editor - Linear-style invisible editor */}
+              <RichTextEditor
+                content={description}
+                onChange={handleDescriptionChange}
+                onBlur={handleDescriptionBlur}
+                placeholder="Add a description..."
+                className="min-h-[200px]"
+                minimal
+              />
 
               {/* Subtasks */}
               {subtasks && subtasks.length > 0 && (
@@ -299,21 +295,22 @@ export default function TaskPage() {
               )}
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <div className="border rounded-lg p-4 space-y-4">
+            {/* Sidebar - Clean, minimal like Linear */}
+            <div className="space-y-1">
+              {/* Properties list */}
+              <div className="divide-y divide-border/50">
                 {/* Plan */}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
+                <div className="flex items-center py-3">
+                  <div className="flex items-center gap-2 w-24 text-sm text-muted-foreground">
                     <FolderKanban className="h-4 w-4" />
-                    Plan
-                  </label>
+                    <span>Plan</span>
+                  </div>
                   <Select
                     value={String(task.planId)}
                     onValueChange={handlePlanChange}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select plan" />
+                    <SelectTrigger className="border-none shadow-none h-auto p-0 w-auto focus:ring-0">
+                      <span className="text-sm">{currentPlan?.name || 'Select plan'}</span>
                     </SelectTrigger>
                     <SelectContent>
                       {plans?.map((plan) => (
@@ -326,20 +323,23 @@ export default function TaskPage() {
                 </div>
 
                 {/* Cycle */}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
+                <div className="flex items-center py-3">
+                  <div className="flex items-center gap-2 w-24 text-sm text-muted-foreground">
                     <CalendarIcon className="h-4 w-4" />
-                    Cycle
-                  </label>
+                    <span>Cycle</span>
+                  </div>
                   <Select
                     value={task.cycleId ? String(task.cycleId) : 'none'}
                     onValueChange={handleCycleChange}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="No cycle" />
+                    <SelectTrigger className="border-none shadow-none h-auto p-0 w-auto focus:ring-0">
+                      <span className="text-sm">
+                        {currentCycle?.name || 'No cycle'}
+                        {currentCycle?.isCurrent && ' (Current)'}
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No cycle (Backlog)</SelectItem>
+                      <SelectItem value="none">No cycle</SelectItem>
                       {cycles?.map((cycle) => (
                         <SelectItem key={cycle.id} value={cycle.id}>
                           {cycle.name}
@@ -351,23 +351,25 @@ export default function TaskPage() {
                 </div>
 
                 {/* Target Date */}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
+                <div className="flex items-center py-3">
+                  <div className="flex items-center gap-2 w-24 text-sm text-muted-foreground">
                     <CalendarIcon className="h-4 w-4" />
-                    Due Date
-                  </label>
+                    <span>Due</span>
+                  </div>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         className={cn(
-                          'w-full justify-start text-left font-normal',
+                          'h-auto p-0 font-normal hover:bg-transparent',
                           !task.targetDate && 'text-muted-foreground'
                         )}
                       >
-                        {task.targetDate
-                          ? format(new Date(task.targetDate), 'PPP')
-                          : 'Pick a date'}
+                        <span className="text-sm">
+                          {task.targetDate
+                            ? format(new Date(task.targetDate), 'MMM d, yyyy')
+                            : 'No date'}
+                        </span>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -382,24 +384,25 @@ export default function TaskPage() {
                 </div>
 
                 {/* Estimate */}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2 mb-2">
+                <div className="flex items-center py-3">
+                  <div className="flex items-center gap-2 w-24 text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    Estimate
-                  </label>
+                    <span>Estimate</span>
+                  </div>
                   <Input
                     value={estimate}
                     onChange={(e) => setEstimate(e.target.value)}
                     onBlur={handleEstimateBlur}
-                    placeholder="e.g. 2h 30m"
+                    placeholder="None"
+                    className="border-none shadow-none h-auto p-0 w-auto text-sm focus-visible:ring-0"
                   />
                 </div>
               </div>
 
-              {/* Metadata */}
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>Created: {format(new Date(task.createdAt), 'PPP')}</p>
-                <p>Updated: {format(new Date(task.updatedAt), 'PPP')}</p>
+              {/* Metadata - subtle footer */}
+              <div className="pt-4 text-xs text-muted-foreground/70 space-y-1">
+                <p>Created {format(new Date(task.createdAt), 'MMM d, yyyy')}</p>
+                <p>Updated {format(new Date(task.updatedAt), 'MMM d, yyyy')}</p>
               </div>
             </div>
           </div>

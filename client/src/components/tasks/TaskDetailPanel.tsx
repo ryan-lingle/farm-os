@@ -35,7 +35,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import {
-  X,
   CalendarIcon,
   Clock,
   FolderKanban,
@@ -155,25 +154,15 @@ export function TaskDetailPanel({
                 <SheetTitle className="text-sm font-medium text-muted-foreground">
                   Quick Edit
                 </SheetTitle>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={handleOpenFullView}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    Open Full View
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => onOpenChange(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={handleOpenFullView}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Open Full View
+                </Button>
               </div>
             </SheetHeader>
 
@@ -185,7 +174,7 @@ export function TaskDetailPanel({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   onBlur={handleBlur}
-                  className="text-lg font-semibold border-0 p-0 h-auto focus-visible:ring-0 shadow-none"
+                  className="text-xl font-bold border-0 p-0 h-auto focus-visible:ring-0 shadow-none"
                   placeholder="Task title"
                 />
               </div>

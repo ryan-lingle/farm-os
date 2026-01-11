@@ -1,6 +1,6 @@
 /**
  * RichTextEditor - TipTap-based WYSIWYG editor
- * Supports rich text formatting, images, links, and more
+ * Linear-inspired invisible editor - toolbar appears on focus
  */
 
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
@@ -9,7 +9,7 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import Typography from '@tiptap/extension-typography';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +38,8 @@ interface RichTextEditorProps {
   editable?: boolean;
   className?: string;
   autoFocus?: boolean;
+  /** Hide toolbar and border for seamless editing (Linear-style) */
+  minimal?: boolean;
 }
 
 interface ToolbarButtonProps {
@@ -73,9 +75,11 @@ function ToolbarDivider() {
 
 interface EditorToolbarProps {
   editor: Editor | null;
+  /** Use minimal styling (no border/background) for floating toolbar */
+  minimal?: boolean;
 }
 
-function EditorToolbar({ editor }: EditorToolbarProps) {
+function EditorToolbar({ editor, minimal = false }: EditorToolbarProps) {
   if (!editor) return null;
 
   const addImage = useCallback(() => {
@@ -100,7 +104,10 @@ function EditorToolbar({ editor }: EditorToolbarProps) {
   }, [editor]);
 
   return (
-    <div className="flex items-center gap-0.5 p-2 border-b border-border bg-muted/30 flex-wrap">
+    <div className={cn(
+      'flex items-center gap-0.5 flex-wrap',
+      minimal ? '' : 'p-2 border-b border-border bg-muted/30'
+    )}>
       {/* Undo/Redo */}
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}
@@ -234,7 +241,14 @@ export function RichTextEditor({
   editable = true,
   className,
   autoFocus = false,
+  minimal = false,
 }: RichTextEditorProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const [isToolbarActive, setIsToolbarActive] = useState(false);
+
+  // Show toolbar when editor is focused OR user is interacting with toolbar
+  const showToolbar = isFocused || isToolbarActive;
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -264,7 +278,11 @@ export function RichTextEditor({
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },
+    onFocus: () => {
+      setIsFocused(true);
+    },
     onBlur: () => {
+      setIsFocused(false);
       onBlur?.();
     },
     editorProps: {
@@ -333,6 +351,26 @@ export function RichTextEditor({
       editor.setEditable(editable);
     }
   }, [editable, editor]);
+
+  // Minimal mode: no border, toolbar only on focus (Linear-style)
+  if (minimal) {
+    return (
+      <div className={cn('relative', className)}>
+        {/* Floating toolbar - visible when editor focused or interacting with toolbar */}
+        {editable && showToolbar && (
+          <div
+            className="sticky top-0 z-10 mb-4 -mx-4 px-4 py-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50"
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseEnter={() => setIsToolbarActive(true)}
+            onMouseLeave={() => setIsToolbarActive(false)}
+          >
+            <EditorToolbar editor={editor} minimal />
+          </div>
+        )}
+        <EditorContent editor={editor} />
+      </div>
+    );
+  }
 
   return (
     <div className={cn('border rounded-lg overflow-hidden bg-background', className)}>

@@ -259,13 +259,22 @@ const MapInterface = () => {
       }
     });
 
-    // Handle selection
+    // Handle selection - switch to direct_select for vertex editing
     map.current.on('draw.selectionchange', (e: any) => {
       if (e.features.length > 0) {
         const feature = e.features[0];
         const location = locations.find(loc => loc.id === feature.properties.id);
         if (location) {
           setSelectedLocation(location);
+        }
+        // When in select mode, auto-switch to direct_select to enable vertex editing
+        if (drawModeRef.current === 'select' && draw.current) {
+          const currentMode = draw.current.getMode();
+          // Only switch if we're in simple_select (not already in direct_select or draw modes)
+          if (currentMode === 'simple_select') {
+            console.log('[MapInterface] Switching to direct_select for vertex editing');
+            draw.current.changeMode('direct_select', { featureId: feature.id });
+          }
         }
       } else {
         setSelectedLocation(null);
@@ -509,7 +518,7 @@ const MapInterface = () => {
     };
   }, [locations, isLoading]);
 
-  // Handle location selection
+  // Handle location selection - also select in draw for editing
   const handleLocationSelect = (location: Location) => {
     setSelectedLocation(location);
     if (!map.current || !location.geometry) return;
@@ -530,6 +539,16 @@ const MapInterface = () => {
       }, new mapboxgl.LngLatBounds(coords[0] as [number, number], coords[0] as [number, number]));
 
       map.current.fitBounds(bounds, { padding: 50, duration: 1000 });
+
+      // Select the polygon in MapboxDraw for editing (if in select mode)
+      if (draw.current && drawMode === 'select') {
+        const features = draw.current.getAll();
+        const feature = features.features.find((f: any) => f.properties.id === location.id);
+        if (feature) {
+          // Switch to direct_select mode to enable vertex editing
+          draw.current.changeMode('direct_select', { featureId: feature.id as string });
+        }
+      }
     }
   };
 

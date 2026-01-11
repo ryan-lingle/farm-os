@@ -9,12 +9,14 @@ import { LazyHierarchyTreeView } from './HierarchyTreeView';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { LocationEditModal } from './LocationEditModal';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 
 interface LocationsSidebarProps {
   locations: Location[];
@@ -41,30 +43,41 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
   isOpen
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingLocation, setEditingLocation] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('tree');
+
+  // Edit modal state
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Delete confirmation state
+  const [deletingLocation, setDeletingLocation] = useState<Location | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
   };
 
-  const startEditing = (location: Location) => {
-    setEditingLocation(location.id);
-    setEditName(location.name);
+  const openEditModal = (location: Location) => {
+    setEditingLocation(location);
+    setIsEditModalOpen(true);
   };
 
-  const saveEdit = () => {
-    if (editingLocation && editName.trim()) {
-      onLocationUpdate(editingLocation, { name: editName.trim() });
-      setEditingLocation(null);
-      setEditName('');
-    }
-  };
-
-  const cancelEdit = () => {
+  const handleEditSave = (id: string, updates: Partial<Location>) => {
+    onLocationUpdate(id, updates);
+    setIsEditModalOpen(false);
     setEditingLocation(null);
-    setEditName('');
+  };
+
+  const openDeleteDialog = (location: Location) => {
+    setDeletingLocation(location);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deletingLocation) {
+      onLocationDelete(deletingLocation.id);
+      setDeletingLocation(null);
+    }
   };
 
   const filteredLocations = locations.filter(location =>
@@ -260,7 +273,7 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          startEditing(location);
+                          openEditModal(location);
                         }}
                         className="h-7 w-7 p-0"
                       >
@@ -268,7 +281,7 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="left">
-                      <p>Edit name</p>
+                      <p>Edit location</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -280,7 +293,7 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onLocationDelete(location.id);
+                          openDeleteDialog(location);
                         }}
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                       >
@@ -311,28 +324,14 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Pentagon className="h-4 w-4 text-draw-polygon" />
-                    {editingLocation === location.id ? (
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveEdit();
-                          if (e.key === 'Escape') cancelEdit();
-                        }}
-                        onBlur={saveEdit}
-                        className="h-6 text-sm font-medium bg-background"
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="font-medium text-card-foreground">{location.name}</span>
-                    )}
+                    <span className="font-medium text-card-foreground">{location.name}</span>
                     {location.depth !== undefined && location.depth > 0 && (
                       <Badge variant="outline" className="text-xs">
                         L{location.depth}
                       </Badge>
                     )}
                   </div>
-                  
+
                   <div className="flex gap-1">
                     {onAddChildLocation && (
                       <TooltipProvider>
@@ -372,7 +371,7 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        startEditing(location);
+                        openEditModal(location);
                       }}
                       className="h-6 w-6 p-0"
                     >
@@ -383,7 +382,7 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onLocationDelete(location.id);
+                        openDeleteDialog(location);
                       }}
                       className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                     >
@@ -419,6 +418,24 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
           </div>
         )}
       </div>
+
+      {/* Edit Modal */}
+      <LocationEditModal
+        location={editingLocation}
+        locations={locations}
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        onSave={handleEditSave}
+      />
+
+      {/* Delete Confirmation */}
+      <DeleteConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Location"
+        itemName={deletingLocation?.name}
+      />
     </div>
   );
 };
