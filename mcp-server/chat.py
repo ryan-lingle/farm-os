@@ -34,6 +34,40 @@ from main import (
     move_asset,
     record_observation,
     get_farm_summary,
+    # Task tools
+    list_tasks,
+    get_task,
+    create_task,
+    update_task,
+    delete_task,
+    complete_task,
+    get_my_tasks,
+    get_overdue_tasks,
+    get_blocked_tasks,
+    move_task_to_plan,
+    schedule_task_to_cycle,
+    # Plan tools
+    list_plans,
+    get_plan,
+    get_plan_children,
+    create_plan,
+    update_plan,
+    delete_plan,
+    # Cycle tools
+    list_cycles,
+    get_cycle,
+    get_current_cycle,
+    create_cycle,
+    generate_cycles,
+    update_cycle,
+    delete_cycle,
+    # Task relation tools
+    add_task_blocker,
+    remove_task_blocker,
+    get_task_blockers,
+    get_tasks_blocked_by,
+    add_related_task,
+    mark_task_duplicate,
 )
 
 # OpenAI client (lazily initialized)
@@ -79,6 +113,40 @@ TOOL_NAMES = [
     "move_asset",
     "record_observation",
     "get_farm_summary",
+    # Task tools
+    "list_tasks",
+    "get_task",
+    "create_task",
+    "update_task",
+    "delete_task",
+    "complete_task",
+    "get_my_tasks",
+    "get_overdue_tasks",
+    "get_blocked_tasks",
+    "move_task_to_plan",
+    "schedule_task_to_cycle",
+    # Plan tools
+    "list_plans",
+    "get_plan",
+    "get_plan_children",
+    "create_plan",
+    "update_plan",
+    "delete_plan",
+    # Cycle tools
+    "list_cycles",
+    "get_cycle",
+    "get_current_cycle",
+    "create_cycle",
+    "generate_cycles",
+    "update_cycle",
+    "delete_cycle",
+    # Task relation tools
+    "add_task_blocker",
+    "remove_task_blocker",
+    "get_task_blockers",
+    "get_tasks_blocked_by",
+    "add_related_task",
+    "mark_task_duplicate",
 ]
 
 # Import the module to look up functions dynamically
@@ -91,7 +159,7 @@ def _get_tool_function(name: str):
     return getattr(_current_module, name)
 
 # System prompt for the farm assistant
-SYSTEM_PROMPT = """You are a helpful farm management assistant for farmOS. You help farmers manage their assets, locations, logs, and observations.
+SYSTEM_PROMPT = """You are a helpful farm management assistant for farmOS. You help farmers manage their assets, locations, logs, observations, and tasks.
 
 You have access to tools that allow you to:
 - View and manage farm assets (animals, plants, equipment, etc.)
@@ -101,11 +169,20 @@ You have access to tools that allow you to:
 - Move assets between locations
 - Get a summary of the farm
 
+Task Management:
+- Create, update, and complete tasks (every task belongs to a plan)
+- Organize tasks into plans - plans are recursive (plans can contain other plans)
+- Schedule tasks into cycles (time periods like sprints or weeks)
+- Track task dependencies (blockers) and related tasks
+- View overdue tasks, blocked tasks, and active work
+- Link tasks to specific assets or locations
+
 When answering questions:
 - Be concise and helpful
 - Use tools to get current data when needed
 - Explain what you found in natural language
 - If you need to perform multiple operations, do them in sequence
+- For task management, proactively suggest organizing tasks into plans or scheduling them into cycles
 
 Always prioritize getting accurate, real-time data from the farm database over making assumptions."""
 

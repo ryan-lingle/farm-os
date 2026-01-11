@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_10_000007) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_11_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -95,6 +95,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_10_000007) do
     t.index ["to_location_id"], name: "index_logs_on_to_location_id"
   end
 
+  create_table "plans", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.string "status", default: "planned", null: false
+    t.date "start_date"
+    t.date "target_date"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "parent_id"
+    t.index ["parent_id"], name: "index_plans_on_parent_id"
+    t.index ["status"], name: "index_plans_on_status"
+  end
+
   create_table "predicates", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "name", null: false
     t.string "kind", null: false
@@ -105,17 +118,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_10_000007) do
     t.datetime "updated_at", null: false
     t.index ["kind"], name: "index_predicates_on_kind"
     t.index ["name"], name: "index_predicates_on_name", unique: true
-  end
-
-  create_table "projects", force: :cascade do |t|
-    t.string "name", null: false
-    t.text "description"
-    t.string "status", default: "planned", null: false
-    t.date "start_date"
-    t.date "target_date"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["status"], name: "index_projects_on_status"
   end
 
   create_table "quantities", force: :cascade do |t|
@@ -179,13 +181,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_10_000007) do
     t.integer "estimate"
     t.date "target_date"
     t.bigint "parent_id"
-    t.bigint "project_id"
+    t.bigint "plan_id"
     t.bigint "cycle_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["cycle_id"], name: "index_tasks_on_cycle_id"
     t.index ["parent_id"], name: "index_tasks_on_parent_id"
-    t.index ["project_id"], name: "index_tasks_on_project_id"
+    t.index ["plan_id"], name: "index_tasks_on_plan_id"
     t.index ["state"], name: "index_tasks_on_state"
     t.index ["target_date"], name: "index_tasks_on_target_date"
   end
@@ -206,6 +208,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_10_000007) do
   add_foreign_key "locations", "locations", column: "parent_id"
   add_foreign_key "logs", "locations", column: "from_location_id"
   add_foreign_key "logs", "locations", column: "to_location_id"
+  add_foreign_key "plans", "plans", column: "parent_id"
   add_foreign_key "quantities", "logs"
   add_foreign_key "task_assets", "assets"
   add_foreign_key "task_assets", "tasks"
@@ -216,6 +219,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_10_000007) do
   add_foreign_key "task_relations", "tasks", column: "source_task_id"
   add_foreign_key "task_relations", "tasks", column: "target_task_id"
   add_foreign_key "tasks", "cycles"
-  add_foreign_key "tasks", "projects"
+  add_foreign_key "tasks", "plans"
   add_foreign_key "tasks", "tasks", column: "parent_id"
 end
