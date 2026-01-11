@@ -3,11 +3,11 @@ class TaskSerializer
 
   set_type "task"
 
-  attributes :title, :description, :state, :estimate, :target_date, :parent_id, :project_id, :cycle_id, :created_at, :updated_at
+  attributes :title, :description, :state, :estimate, :target_date, :parent_id, :plan_id, :cycle_id, :created_at, :updated_at
 
   belongs_to :parent, serializer: :task
   has_many :children, serializer: :task
-  belongs_to :project
+  belongs_to :plan
   belongs_to :cycle
   has_many :assets
   has_many :locations

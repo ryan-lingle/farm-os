@@ -149,6 +149,131 @@ export interface Location {
 }
 
 // ===========================
+// Task Management Types
+// ===========================
+
+export type TaskState = 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';
+export type PlanStatus = 'planned' | 'active' | 'completed' | 'cancelled';
+export type TaskRelationType = 'blocks' | 'related' | 'duplicate';
+
+export interface Task {
+  id: string;
+  type: 'task';
+  attributes: {
+    title: string;
+    description?: string | null;
+    state: TaskState;
+    estimate?: number | null; // in minutes
+    estimate_display?: string | null; // e.g., "2h 30m"
+    estimate_in_hours?: number | null;
+    target_date?: string | null;
+    parent_id?: number | null;
+    plan_id: number; // Required - every task belongs to a plan
+    cycle_id?: number | null;
+    created_at: string;
+    updated_at: string;
+    // Computed fields
+    depth?: number;
+    is_root?: boolean;
+    is_leaf?: boolean;
+    child_count?: number;
+    is_active?: boolean;
+    is_completed?: boolean;
+    is_blocked?: boolean;
+    blocks_count?: number;
+    blocked_by_count?: number;
+  };
+  relationships?: {
+    parent?: { data: { id: string; type: string } | null };
+    children?: { data: Array<{ id: string; type: string }> };
+    plan?: { data: { id: string; type: string } };
+    cycle?: { data: { id: string; type: string } | null };
+    assets?: { data: Array<{ id: string; type: string }> };
+    locations?: { data: Array<{ id: string; type: string }> };
+    logs?: { data: Array<{ id: string; type: string }> };
+  };
+}
+
+export interface Plan {
+  id: string;
+  type: 'plan';
+  attributes: {
+    name: string;
+    description?: string | null;
+    status: PlanStatus;
+    start_date?: string | null;
+    target_date?: string | null;
+    parent_id?: number | null; // Plans can be nested
+    created_at: string;
+    updated_at: string;
+    // Computed fields
+    task_count?: number;
+    completed_task_count?: number;
+    active_task_count?: number;
+    progress_percentage?: number;
+    total_estimate?: number;
+    total_estimate_display?: string;
+    is_in_progress?: boolean;
+    // Hierarchy fields
+    depth?: number;
+    is_root?: boolean;
+    is_leaf?: boolean;
+    child_count?: number;
+    direct_task_count?: number;
+  };
+  relationships?: {
+    tasks?: { data: Array<{ id: string; type: string }> };
+    parent?: { data: { id: string; type: string } | null };
+    children?: { data: Array<{ id: string; type: string }> };
+  };
+}
+
+export interface Cycle {
+  id: string;
+  type: 'cycle';
+  attributes: {
+    name: string;
+    start_date: string;
+    end_date: string;
+    created_at: string;
+    updated_at: string;
+    // Computed fields
+    is_current?: boolean;
+    is_past?: boolean;
+    is_future?: boolean;
+    days_remaining?: number;
+    days_elapsed?: number;
+    total_days?: number;
+    progress_percentage?: number;
+    task_count?: number;
+    completed_task_count?: number;
+    active_task_count?: number;
+    task_completion_percentage?: number;
+    total_estimate?: number;
+    completed_estimate?: number;
+  };
+  relationships?: {
+    tasks?: { data: Array<{ id: string; type: string }> };
+  };
+}
+
+export interface TaskRelation {
+  id: string;
+  type: 'task_relation';
+  attributes: {
+    relation_type: TaskRelationType;
+    source_task_id: number;
+    target_task_id: number;
+    created_at: string;
+    updated_at: string;
+  };
+  relationships?: {
+    source_task?: { data: { id: string; type: string } };
+    target_task?: { data: { id: string; type: string } };
+  };
+}
+
+// ===========================
 // Geometry Conversion Utilities
 // ===========================
 
@@ -547,6 +672,431 @@ export const locationsApi = {
         method: 'DELETE',
       }
     );
+  },
+};
+
+// ===========================
+// Tasks API
+// ===========================
+export interface TaskFilters {
+  state?: TaskState | TaskState[];
+  plan_id?: number | string;
+  cycle_id?: number | string;
+  parent_id?: number | string;
+  unscheduled?: boolean;
+  active?: boolean;
+  completed?: boolean;
+  blocked?: boolean;
+  overdue?: boolean;
+}
+
+export const tasksApi = {
+  list: async (page = 1, perPage = 50, filters?: TaskFilters) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+    });
+
+    if (filters?.state) {
+      if (Array.isArray(filters.state)) {
+        filters.state.forEach(s => params.append('filter[state][]', s));
+      } else {
+        params.append('filter[state]', filters.state);
+      }
+    }
+    if (filters?.plan_id) {
+      params.append('filter[plan_id]', filters.plan_id.toString());
+    }
+    if (filters?.cycle_id) {
+      params.append('filter[cycle_id]', filters.cycle_id.toString());
+    }
+    if (filters?.parent_id) {
+      params.append('filter[parent_id]', filters.parent_id.toString());
+    }
+    if (filters?.unscheduled) {
+      params.append('filter[unscheduled]', 'true');
+    }
+    if (filters?.active) {
+      params.append('filter[active]', 'true');
+    }
+    if (filters?.completed) {
+      params.append('filter[completed]', 'true');
+    }
+    if (filters?.blocked) {
+      params.append('filter[blocked]', 'true');
+    }
+    if (filters?.overdue) {
+      params.append('filter[overdue]', 'true');
+    }
+
+    return fetchApi<ApiResponse<Task[]>>(
+      `/api/v1/tasks?${params.toString()}`
+    );
+  },
+
+  get: async (id: string | number, include?: string[]) => {
+    const params = new URLSearchParams();
+    if (include && include.length > 0) {
+      params.append('include', include.join(','));
+    }
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchApi<ApiResponse<Task>>(
+      `/api/v1/tasks/${id}${query}`
+    );
+  },
+
+  create: async (data: {
+    title: string;
+    description?: string;
+    state?: TaskState;
+    estimate?: number;
+    target_date?: string;
+    parent_id?: number;
+    plan_id: number; // Required
+    cycle_id?: number;
+    asset_ids?: number[];
+    location_ids?: number[];
+  }) => {
+    return fetchApi<ApiResponse<Task>>(
+      `/api/v1/tasks`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ data: { type: 'task', attributes: data } }),
+      }
+    );
+  },
+
+  update: async (id: string | number, data: Partial<{
+    title: string;
+    description: string | null;
+    state: TaskState;
+    estimate: number | null;
+    target_date: string | null;
+    parent_id: number | null;
+    plan_id: number;
+    cycle_id: number | null;
+    asset_ids: number[];
+    location_ids: number[];
+  }>) => {
+    return fetchApi<ApiResponse<Task>>(
+      `/api/v1/tasks/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ data: { attributes: data } }),
+      }
+    );
+  },
+
+  delete: async (id: string | number) => {
+    return fetchApi<void>(
+      `/api/v1/tasks/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
+  complete: async (id: string | number) => {
+    return tasksApi.update(id, { state: 'done' });
+  },
+
+  // Group tasks by state for Kanban view
+  listByState: async (filters?: Omit<TaskFilters, 'state'>) => {
+    const allTasks = await tasksApi.list(1, 500, filters);
+    const grouped: Record<TaskState, Task[]> = {
+      backlog: [],
+      todo: [],
+      in_progress: [],
+      done: [],
+      cancelled: [],
+    };
+
+    for (const task of allTasks.data) {
+      const state = task.attributes.state;
+      if (grouped[state]) {
+        grouped[state].push(task);
+      }
+    }
+
+    return grouped;
+  },
+};
+
+// ===========================
+// Plans API
+// ===========================
+export interface PlanFilters {
+  status?: PlanStatus | PlanStatus[];
+  in_progress?: boolean;
+  root_only?: boolean;
+  parent_id?: number | string;
+}
+
+export const plansApi = {
+  list: async (page = 1, perPage = 50, filters?: PlanFilters) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+    });
+
+    if (filters?.status) {
+      if (Array.isArray(filters.status)) {
+        filters.status.forEach(s => params.append('filter[status][]', s));
+      } else {
+        params.append('filter[status]', filters.status);
+      }
+    }
+    if (filters?.in_progress) {
+      params.append('filter[in_progress]', 'true');
+    }
+    if (filters?.root_only) {
+      params.append('filter[root_only]', 'true');
+    }
+    if (filters?.parent_id) {
+      params.append('filter[parent_id]', filters.parent_id.toString());
+    }
+
+    return fetchApi<ApiResponse<Plan[]>>(
+      `/api/v1/plans?${params.toString()}`
+    );
+  },
+
+  get: async (id: string | number, include?: string[]) => {
+    const params = new URLSearchParams();
+    if (include && include.length > 0) {
+      params.append('include', include.join(','));
+    }
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchApi<ApiResponse<Plan>>(
+      `/api/v1/plans/${id}${query}`
+    );
+  },
+
+  getRoots: async (page = 1, perPage = 50) => {
+    return plansApi.list(page, perPage, { root_only: true });
+  },
+
+  getChildren: async (parentId: string | number, page = 1, perPage = 50) => {
+    return plansApi.list(page, perPage, { parent_id: parentId });
+  },
+
+  create: async (data: {
+    name: string;
+    description?: string;
+    status?: PlanStatus;
+    start_date?: string;
+    target_date?: string;
+    parent_id?: number;
+  }) => {
+    return fetchApi<ApiResponse<Plan>>(
+      `/api/v1/plans`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ data: { type: 'plan', attributes: data } }),
+      }
+    );
+  },
+
+  update: async (id: string | number, data: Partial<{
+    name: string;
+    description: string | null;
+    status: PlanStatus;
+    start_date: string | null;
+    target_date: string | null;
+    parent_id: number | null;
+  }>) => {
+    return fetchApi<ApiResponse<Plan>>(
+      `/api/v1/plans/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ data: { attributes: data } }),
+      }
+    );
+  },
+
+  delete: async (id: string | number) => {
+    return fetchApi<void>(
+      `/api/v1/plans/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+};
+
+// ===========================
+// Cycles API
+// ===========================
+export interface CycleFilters {
+  current?: boolean;
+  past?: boolean;
+  future?: boolean;
+}
+
+export const cyclesApi = {
+  list: async (page = 1, perPage = 50, filters?: CycleFilters) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+    });
+
+    if (filters?.current) {
+      params.append('filter[current]', 'true');
+    }
+    if (filters?.past) {
+      params.append('filter[past]', 'true');
+    }
+    if (filters?.future) {
+      params.append('filter[future]', 'true');
+    }
+
+    return fetchApi<ApiResponse<Cycle[]>>(
+      `/api/v1/cycles?${params.toString()}`
+    );
+  },
+
+  get: async (id: string | number, include?: string[]) => {
+    const params = new URLSearchParams();
+    if (include && include.length > 0) {
+      params.append('include', include.join(','));
+    }
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchApi<ApiResponse<Cycle>>(
+      `/api/v1/cycles/${id}${query}`
+    );
+  },
+
+  current: async () => {
+    return fetchApi<ApiResponse<Cycle>>(
+      `/api/v1/cycles/current`
+    );
+  },
+
+  create: async (data: {
+    name: string;
+    start_date: string;
+    end_date: string;
+  }) => {
+    return fetchApi<ApiResponse<Cycle>>(
+      `/api/v1/cycles`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ data: { type: 'cycle', attributes: data } }),
+      }
+    );
+  },
+
+  generate: async (params: {
+    start_date: string;
+    count: number;
+    duration_days?: number;
+  }) => {
+    return fetchApi<ApiResponse<Cycle[]>>(
+      `/api/v1/cycles/generate`,
+      {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }
+    );
+  },
+
+  update: async (id: string | number, data: Partial<{
+    name: string;
+    start_date: string;
+    end_date: string;
+  }>) => {
+    return fetchApi<ApiResponse<Cycle>>(
+      `/api/v1/cycles/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ data: { attributes: data } }),
+      }
+    );
+  },
+
+  delete: async (id: string | number) => {
+    return fetchApi<void>(
+      `/api/v1/cycles/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+};
+
+// ===========================
+// Task Relations API
+// ===========================
+export interface TaskRelationFilters {
+  source_task_id?: number | string;
+  target_task_id?: number | string;
+  relation_type?: TaskRelationType;
+}
+
+export const taskRelationsApi = {
+  list: async (filters?: TaskRelationFilters) => {
+    const params = new URLSearchParams();
+
+    if (filters?.source_task_id) {
+      params.append('filter[source_task_id]', filters.source_task_id.toString());
+    }
+    if (filters?.target_task_id) {
+      params.append('filter[target_task_id]', filters.target_task_id.toString());
+    }
+    if (filters?.relation_type) {
+      params.append('filter[relation_type]', filters.relation_type);
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchApi<ApiResponse<TaskRelation[]>>(
+      `/api/v1/task_relations${query}`
+    );
+  },
+
+  create: async (data: {
+    source_task_id: number;
+    target_task_id: number;
+    relation_type: TaskRelationType;
+  }) => {
+    return fetchApi<ApiResponse<TaskRelation>>(
+      `/api/v1/task_relations`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ data: { type: 'task_relation', attributes: data } }),
+      }
+    );
+  },
+
+  delete: async (id: string | number) => {
+    return fetchApi<void>(
+      `/api/v1/task_relations/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
+  // Convenience methods for blocking relationships
+  addBlocker: async (taskId: number, blockedByTaskId: number) => {
+    return taskRelationsApi.create({
+      source_task_id: blockedByTaskId,
+      target_task_id: taskId,
+      relation_type: 'blocks',
+    });
+  },
+
+  getBlockers: async (taskId: number) => {
+    return taskRelationsApi.list({
+      target_task_id: taskId,
+      relation_type: 'blocks',
+    });
+  },
+
+  getBlocking: async (taskId: number) => {
+    return taskRelationsApi.list({
+      source_task_id: taskId,
+      relation_type: 'blocks',
+    });
   },
 };
 

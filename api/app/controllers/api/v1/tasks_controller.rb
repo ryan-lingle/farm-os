@@ -11,9 +11,9 @@ module Api
           tasks = tasks.where(state: params[:filter][:state])
         end
 
-        # Project filter
-        if params.dig(:filter, :project_id)
-          tasks = tasks.where(project_id: params[:filter][:project_id])
+        # Plan filter
+        if params.dig(:filter, :plan_id)
+          tasks = tasks.where(plan_id: params[:filter][:plan_id])
         end
 
         # Cycle filter
@@ -151,7 +151,7 @@ module Api
           base_params = params.require(:task)
         end
 
-        base_params.permit(:title, :description, :state, :estimate, :target_date, :parent_id, :project_id, :cycle_id)
+        base_params.permit(:title, :description, :state, :estimate, :target_date, :parent_id, :plan_id, :cycle_id)
       end
 
       def params_asset_ids

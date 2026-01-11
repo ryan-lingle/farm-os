@@ -5,7 +5,7 @@ class Task < ApplicationRecord
   # Associations
   belongs_to :parent, class_name: 'Task', optional: true
   has_many :children, class_name: 'Task', foreign_key: 'parent_id', dependent: :nullify
-  belongs_to :project, optional: true
+  belongs_to :plan
   belongs_to :cycle, optional: true
 
   # Many-to-many associations via join tables

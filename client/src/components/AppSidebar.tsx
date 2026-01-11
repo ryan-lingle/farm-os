@@ -14,7 +14,10 @@ import {
   Hammer,
   Calendar,
   Plus,
-  Wrench
+  Wrench,
+  CheckSquare,
+  FolderKanban,
+  CalendarDays,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -45,6 +48,12 @@ const logItems = [
   { title: 'Observation', url: '/records/logs/observation', icon: Calendar },
 ];
 
+const taskItems = [
+  { title: 'All Tasks', url: '/tasks', icon: CheckSquare },
+  { title: 'Plans', url: '/tasks/plans', icon: FolderKanban },
+  { title: 'Cycles', url: '/tasks/cycles', icon: CalendarDays },
+];
+
 export function AppSidebar() {
   const { open, toggleSidebar } = useSidebar();
   const location = useLocation();
@@ -52,6 +61,7 @@ export function AppSidebar() {
   
   const [assetsExpanded, setAssetsExpanded] = useState(currentPath.includes('/records/assets'));
   const [logsExpanded, setLogsExpanded] = useState(currentPath.includes('/records/logs'));
+  const [tasksExpanded, setTasksExpanded] = useState(currentPath.includes('/tasks'));
 
   const isActive = (path: string) => currentPath === path;
   const isParentActive = (basePath: string) => currentPath.startsWith(basePath);
@@ -155,7 +165,49 @@ export function AppSidebar() {
                   {logItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <NavLink 
+                        <NavLink
+                          to={item.url}
+                          className={getNavClasses(isActive(item.url))}
+                        >
+                          <item.icon className="h-3 w-3" />
+                          <span className="ml-2 text-sm">{item.title}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </div>
+              )}
+
+              {/* Tasks */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => setTasksExpanded(!tasksExpanded)}
+                  className={cn(
+                    "w-full justify-between",
+                    isParentActive('/tasks')
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <div className="flex items-center">
+                    <CheckSquare className="h-4 w-4" />
+                    {open && <span className="ml-2">Tasks</span>}
+                  </div>
+                  {open && (
+                    tasksExpanded ?
+                      <ChevronDown className="h-3 w-3" /> :
+                      <ChevronRight className="h-3 w-3" />
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Tasks Submenu */}
+              {tasksExpanded && open && (
+                <div className="ml-4 space-y-1">
+                  {taskItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink
                           to={item.url}
                           className={getNavClasses(isActive(item.url))}
                         >
