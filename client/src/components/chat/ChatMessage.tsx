@@ -1,17 +1,109 @@
 /**
  * Chat message component.
  * Renders a single message bubble with appropriate styling based on role.
+ * Includes copy-pasteable error details when tool calls fail.
  */
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import type { ChatMessage as ChatMessageType } from '@/types/chat';
+import { Copy, Check, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { ChatMessage as ChatMessageType, ToolCall } from '@/types/chat';
 
 interface ChatMessageProps {
   message: ChatMessageType;
 }
 
+/**
+ * Extract errors from tool calls for display.
+ */
+function getToolCallErrors(toolCalls?: ToolCall[]): Array<{ name: string; error: string; details: string }> {
+  if (!toolCalls) return [];
+
+  return toolCalls
+    .filter(tc => tc.error || (tc.result && (tc.result as Record<string, unknown>).success === false))
+    .map(tc => {
+      const result = tc.result as Record<string, unknown> | undefined;
+      const errorMessage = tc.error || result?.error as string || 'Unknown error';
+      const errorCode = result?.error_code as string || 'UNKNOWN_ERROR';
+
+      // Create a copy-pasteable debug string
+      const debugDetails = JSON.stringify({
+        tool: tc.name,
+        arguments: tc.arguments,
+        error_code: errorCode,
+        error: errorMessage,
+        result: tc.result,
+      }, null, 2);
+
+      return {
+        name: tc.name,
+        error: errorMessage,
+        details: debugDetails,
+      };
+    });
+}
+
+function ErrorDetails({ errors }: { errors: Array<{ name: string; error: string; details: string }> }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  if (errors.length === 0) return null;
+
+  const allDetails = errors.map(e => e.details).join('\n\n---\n\n');
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(allDetails);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-2 border-t border-destructive/20 pt-2">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1 text-xs text-destructive hover:text-destructive/80"
+      >
+        <AlertCircle className="h-3 w-3" />
+        <span>{errors.length} tool error{errors.length > 1 ? 's' : ''}</span>
+        {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+      </button>
+
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Debug info (copy to share):</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={handleCopy}
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3 w-3 mr-1" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3 mr-1" />
+                  Copy
+                </>
+              )}
+            </Button>
+          </div>
+          <pre className="text-xs bg-black/10 dark:bg-white/10 p-2 rounded overflow-x-auto max-h-48 overflow-y-auto font-mono">
+            {allDetails}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const errors = getToolCallErrors(message.toolCalls);
 
   return (
     <div
@@ -29,6 +121,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
       >
         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        {!isUser && <ErrorDetails errors={errors} />}
       </div>
     </div>
   );
