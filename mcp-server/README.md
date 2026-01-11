@@ -70,6 +70,39 @@ Creates a harvest log entry. Parameters:
 - `timestamp`: ISO format timestamp
 - `asset_ids`: List of related asset IDs
 
+## Task Creation Guidelines
+
+When importing task lists from documents (markdown checklists, project plans, etc.):
+
+### Task Granularity
+- **Tasks should represent ~1 day of work** (or a logical work session)
+- Individual checklist items (bullet points) should become **checklist items in the task description**, not separate tasks
+- Group related small items into a single task with a descriptive title
+
+### Example Transformation
+**DON'T** create separate tasks for:
+```
+- Lock apple tree count (20)
+- Confirm rootstock preference
+- Confirm nursery
+```
+
+**DO** create one task:
+```
+Title: "Finalize apple tree order decisions"
+Description:
+- [ ] Lock apple tree count (20)
+- [ ] Confirm rootstock preference (M-111 or B-118)
+- [ ] Confirm nursery: Morse Nursery
+```
+
+### Guidelines
+1. Each Saturday/Sunday of physical work = 1 task
+2. Research/planning that happens over a week = 1 task
+3. Purchasing trips = 1 task per trip
+4. Use task descriptions for the detailed checklist items
+5. Target 10-20 tasks per multi-month project, not 50+
+
 ## Usage with Claude Desktop
 
 Add to your Claude Desktop configuration:
