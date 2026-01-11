@@ -49,6 +49,9 @@ Rails.application.routes.draw do
         end
       end
       resources :task_relations, only: [ :index, :show, :create, :destroy ]
+
+      # Conversation routes (chat history)
+      resources :conversations, only: [ :index, :show, :create, :update, :destroy ]
     end
   end
 

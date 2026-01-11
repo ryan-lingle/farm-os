@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_11_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_12_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_11_000001) do
     t.index ["asset_id"], name: "index_assets_logs_on_asset_id"
     t.index ["log_id", "role"], name: "index_assets_logs_on_log_id_and_role"
     t.index ["log_id"], name: "index_assets_logs_on_log_id"
+  end
+
+  create_table "conversations", force: :cascade do |t|
+    t.string "title"
+    t.string "external_id"
+    t.string "status", default: "active", null: false
+    t.bigint "task_id"
+    t.bigint "plan_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "messages", default: [], null: false
+    t.index ["external_id"], name: "index_conversations_on_external_id"
+    t.index ["plan_id"], name: "index_conversations_on_plan_id"
+    t.index ["status"], name: "index_conversations_on_status"
+    t.index ["task_id"], name: "index_conversations_on_task_id"
   end
 
   create_table "cycles", force: :cascade do |t|
@@ -202,6 +217,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_11_000001) do
 
   add_foreign_key "assets", "assets", column: "parent_id"
   add_foreign_key "assets", "locations", column: "current_location_id"
+  add_foreign_key "conversations", "plans"
+  add_foreign_key "conversations", "tasks"
   add_foreign_key "facts", "assets", column: "subject_id"
   add_foreign_key "facts", "logs"
   add_foreign_key "facts", "predicates"

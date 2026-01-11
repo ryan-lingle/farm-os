@@ -54,9 +54,9 @@ export function ParentSelector<T extends ParentOption>({
   excludeIds = [],
 }: ParentSelectorProps<T>) {
   const [open, setOpen] = useState(false);
-  
+
   // Filter out the current item and any descendants (if we had that info)
-  const filteredOptions = options.filter((option) => {
+  const filteredOptions = (options || []).filter((option) => {
     // Can't select self as parent
     if (currentItemId && option.id === currentItemId) {
       return false;
@@ -228,7 +228,7 @@ export function SimpleParentSelector<T extends ParentOption>({
 }: SimpleParentSelectorProps<T>) {
   const [open, setOpen] = useState(false);
 
-  const filteredOptions = options.filter(
+  const filteredOptions = (options || []).filter(
     (option) => !currentItemId || option.id !== currentItemId
   );
 

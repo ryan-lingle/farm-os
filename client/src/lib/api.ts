@@ -1,5 +1,7 @@
 // API client for farmOS backend
 
+import type { ChatMessage } from '@/types/chat';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3005';
 
 export interface ApiResponse<T> {
@@ -1097,6 +1099,125 @@ export const taskRelationsApi = {
       source_task_id: taskId,
       relation_type: 'blocks',
     });
+  },
+};
+
+// ===========================
+// Conversations API (Chat History)
+// ===========================
+export type ConversationStatus = 'active' | 'archived';
+
+export interface Conversation {
+  id: string;
+  type: 'conversation';
+  attributes: {
+    title?: string | null;
+    external_id?: string | null;
+    status: ConversationStatus;
+    task_id?: number | null;
+    plan_id?: number | null;
+    messages: ChatMessage[];
+    created_at: string;
+    updated_at: string;
+    // Computed fields
+    default_title?: string;
+    has_context?: boolean;
+    context_type?: 'task' | 'plan' | null;
+    is_active?: boolean;
+    is_archived?: boolean;
+  };
+  relationships?: {
+    task?: { data: { id: string; type: string } | null };
+    plan?: { data: { id: string; type: string } | null };
+  };
+}
+
+export interface ConversationFilters {
+  status?: ConversationStatus;
+  task_id?: number | string;
+  plan_id?: number | string;
+  with_context?: boolean;
+}
+
+export const conversationsApi = {
+  list: async (page = 1, perPage = 50, filters?: ConversationFilters) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+    });
+
+    if (filters?.status) {
+      params.append('filter[status]', filters.status);
+    }
+    if (filters?.task_id) {
+      params.append('filter[task_id]', filters.task_id.toString());
+    }
+    if (filters?.plan_id) {
+      params.append('filter[plan_id]', filters.plan_id.toString());
+    }
+    if (filters?.with_context) {
+      params.append('filter[with_context]', 'true');
+    }
+
+    return fetchApi<ApiResponse<Conversation[]>>(
+      `/api/v1/conversations?${params.toString()}`
+    );
+  },
+
+  get: async (id: string | number) => {
+    return fetchApi<ApiResponse<Conversation>>(
+      `/api/v1/conversations/${id}`
+    );
+  },
+
+  create: async (data: {
+    title?: string;
+    external_id?: string;
+    task_id?: number;
+    plan_id?: number;
+    messages?: ChatMessage[];
+  }) => {
+    return fetchApi<ApiResponse<Conversation>>(
+      `/api/v1/conversations`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ data: { type: 'conversation', attributes: data } }),
+      }
+    );
+  },
+
+  update: async (id: string | number, data: Partial<{
+    title: string | null;
+    external_id: string | null;
+    status: ConversationStatus;
+    task_id: number | null;
+    plan_id: number | null;
+    messages: ChatMessage[];
+  }>) => {
+    return fetchApi<ApiResponse<Conversation>>(
+      `/api/v1/conversations/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ data: { attributes: data } }),
+      }
+    );
+  },
+
+  delete: async (id: string | number) => {
+    return fetchApi<void>(
+      `/api/v1/conversations/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  },
+
+  archive: async (id: string | number) => {
+    return conversationsApi.update(id, { status: 'archived' });
+  },
+
+  unarchive: async (id: string | number) => {
+    return conversationsApi.update(id, { status: 'active' });
   },
 };
 

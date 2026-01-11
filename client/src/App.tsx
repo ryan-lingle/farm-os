@@ -26,6 +26,7 @@ import TaskPage from "./pages/tasks/TaskPage";
 import Plans from "./pages/tasks/Plans";
 import PlanDetail from "./pages/tasks/PlanDetail";
 import Cycles from "./pages/tasks/Cycles";
+import Chat from "./pages/Chat";
 import { ChatContainer } from "./components/chat";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,8 @@ const App = () => (
                   <Route path="/tasks/plans" element={<Plans />} />
                   <Route path="/tasks/plans/:id" element={<PlanDetail />} />
                   <Route path="/tasks/cycles" element={<Cycles />} />
+                  <Route path="/chat" element={<Chat />} />
+                  <Route path="/chat/:id" element={<Chat />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>

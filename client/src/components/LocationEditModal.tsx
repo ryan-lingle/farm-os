@@ -104,9 +104,9 @@ export function LocationEditModal({
           <div className="grid gap-2">
             <Label>Parent Location</Label>
             <ParentSelector
-              locations={locations}
-              selectedId={parentId}
-              onSelect={setParentId}
+              options={locations}
+              value={parentId}
+              onChange={(val) => setParentId(val as number | null)}
               excludeIds={[Number(location.id)]}
               placeholder="No parent (root location)"
             />

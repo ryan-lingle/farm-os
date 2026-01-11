@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePlan, useUpdatePlan, useDeletePlan, PlanStatus } from '@/hooks/usePlans';
 import { useTasks, Task, TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
+import { useCreateConversation } from '@/hooks/useConversations';
 import { TaskList, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
   FolderKanban,
+  MessageSquare,
   MoreHorizontal,
   Trash2,
   Edit,
@@ -189,6 +191,7 @@ export default function PlanDetail() {
   const { tasks, isLoading: tasksLoading } = useTasks({ plan_id: id ? parseInt(id, 10) : undefined });
   const deletePlan = useDeletePlan();
   const updatePlan = useUpdatePlan();
+  const createConversation = useCreateConversation();
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
@@ -223,6 +226,16 @@ export default function PlanDetail() {
       });
     } catch (error) {
       console.error('Failed to update status:', error);
+    }
+  };
+
+  const handleChatAboutPlan = async () => {
+    if (plan) {
+      const conversation = await createConversation.mutateAsync({
+        title: `Chat about: ${plan.name}`,
+        planId: parseInt(plan.id, 10),
+      });
+      navigate(`/chat/${conversation.id}`);
     }
   };
 
@@ -298,6 +311,15 @@ export default function PlanDetail() {
                 Complete
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleChatAboutPlan}
+              disabled={createConversation.isPending}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Chat about this plan
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon">

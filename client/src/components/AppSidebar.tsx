@@ -17,6 +17,7 @@ import {
   Wrench,
   CheckSquare,
   FolderKanban,
+  MessageSquare,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -217,6 +218,19 @@ export function AppSidebar() {
                   ))}
                 </div>
               )}
+
+              {/* Chat */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/chat"
+                    className={getNavClasses(isParentActive('/chat'))}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    {open && <span>Chat</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

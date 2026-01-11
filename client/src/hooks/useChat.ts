@@ -1,34 +1,80 @@
 /**
  * useChat hook for farmOS AI assistant.
  * Manages chat state, message history, and API communication.
+ * Supports persistent storage via conversation API.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { sendChatMessage } from '@/lib/chat-api';
+import { conversationsApi } from '@/lib/api';
 import type { ChatMessage, ChatImage, ToolCall } from '@/types/chat';
+
+interface UseChatOptions {
+  conversationId?: string;
+  onMessagesChange?: (messages: ChatMessage[]) => void;
+}
 
 interface UseChatReturn {
   messages: ChatMessage[];
   isLoading: boolean;
+  isSaving: boolean;
   error: string | null;
   sendMessage: (message: string, images?: ChatImage[]) => Promise<void>;
+  loadMessages: (messages: ChatMessage[]) => void;
   clearMessages: () => void;
   clearError: () => void;
 }
 
-export function useChat(): UseChatReturn {
+export function useChat(options: UseChatOptions = {}): UseChatReturn {
+  const { conversationId, onMessagesChange } = options;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Save messages to backend (debounced)
+  const saveMessages = useCallback(async (msgs: ChatMessage[]) => {
+    if (!conversationId) return;
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce the save
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        await conversationsApi.update(conversationId, { messages: msgs });
+        // Invalidate conversation query to keep cache in sync
+        queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+      } catch (err) {
+        console.error('Failed to save messages:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 500);
+  }, [conversationId, queryClient]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const sendMessage = useCallback(async (message: string, images?: ChatImage[]) => {
     if (!message.trim() && (!images || images.length === 0)) return;
 
     // Add user message to chat
     const userMessage: ChatMessage = { role: 'user', content: message, images };
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setIsLoading(true);
     setError(null);
 
@@ -47,7 +93,14 @@ export function useChat(): UseChatReturn {
         content: response.message,
         toolCalls: response.tool_calls,
       };
-      setMessages(prev => [...prev, assistantMessage]);
+      const finalMessages = [...updatedMessages, assistantMessage];
+      setMessages(finalMessages);
+
+      // Save messages to backend
+      saveMessages(finalMessages);
+
+      // Notify parent of changes
+      onMessagesChange?.(finalMessages);
 
       // If there were tool calls, invalidate relevant queries to refresh data
       if (response.tool_calls && response.tool_calls.length > 0) {
@@ -57,11 +110,16 @@ export function useChat(): UseChatReturn {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       setError(errorMessage);
       // Remove the user message if the request failed
-      setMessages(prev => prev.slice(0, -1));
+      setMessages(messages);
     } finally {
       setIsLoading(false);
     }
-  }, [messages, queryClient]);
+  }, [messages, queryClient, saveMessages, onMessagesChange]);
+
+  const loadMessages = useCallback((msgs: ChatMessage[]) => {
+    setMessages(msgs);
+    setError(null);
+  }, []);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -75,8 +133,10 @@ export function useChat(): UseChatReturn {
   return {
     messages,
     isLoading,
+    isSaving,
     error,
     sendMessage,
+    loadMessages,
     clearMessages,
     clearError,
   };

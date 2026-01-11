@@ -8,6 +8,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTask, useUpdateTask, useDeleteTask, TaskState, useSubtasks } from '@/hooks/useTasks';
 import { usePlans } from '@/hooks/usePlans';
 import { useCycles } from '@/hooks/useCycles';
+import { useCreateConversation } from '@/hooks/useConversations';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { TaskList } from '@/components/tasks';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ import {
   Calendar as CalendarIcon,
   Clock,
   FolderKanban,
+  MessageSquare,
   MoreHorizontal,
   Trash2,
   AlertCircle,
@@ -63,6 +65,7 @@ export default function TaskPage() {
   const { cycles } = useCycles();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const createConversation = useCreateConversation();
 
   // Local state for editing
   const [title, setTitle] = useState('');
@@ -153,6 +156,16 @@ export default function TaskPage() {
     }
   };
 
+  const handleChatAboutTask = async () => {
+    if (task) {
+      const conversation = await createConversation.mutateAsync({
+        title: `Chat about: ${task.title}`,
+        taskId: parseInt(task.id, 10),
+      });
+      navigate(`/chat/${conversation.id}`);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -207,6 +220,15 @@ export default function TaskPage() {
             </span>
           </div>
           <div className="flex-1" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleChatAboutTask}
+            disabled={createConversation.isPending}
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Chat about this task
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
