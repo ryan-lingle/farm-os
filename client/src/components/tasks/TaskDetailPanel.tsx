@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Task, TaskState, useTask, useUpdateTask, useSubtasks } from '@/hooks/useTasks';
 import { usePlans, Plan } from '@/hooks/usePlans';
 import { useCycles, Cycle } from '@/hooks/useCycles';
@@ -41,6 +42,7 @@ import {
   CalendarDays,
   ChevronRight,
   AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { TaskList } from './TaskList';
@@ -66,11 +68,20 @@ export function TaskDetailPanel({
   onOpenChange,
   onTaskSelect,
 }: TaskDetailPanelProps) {
+  const navigate = useNavigate();
   const { data: task, isLoading } = useTask(taskId || undefined);
   const { subtasks } = useSubtasks(taskId || undefined);
   const { plans } = usePlans();
   const { cycles } = useCycles();
   const updateTask = useUpdateTask();
+
+  // Open full view
+  const handleOpenFullView = () => {
+    if (taskId) {
+      onOpenChange(false);
+      navigate(`/tasks/${taskId}`);
+    }
+  };
 
   // Local form state
   const [title, setTitle] = useState('');
@@ -142,16 +153,27 @@ export function TaskDetailPanel({
             <SheetHeader className="p-4 border-b">
               <div className="flex items-center justify-between">
                 <SheetTitle className="text-sm font-medium text-muted-foreground">
-                  Task Details
+                  Quick Edit
                 </SheetTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => onOpenChange(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={handleOpenFullView}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Open Full View
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </SheetHeader>
 
