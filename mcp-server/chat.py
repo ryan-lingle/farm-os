@@ -251,8 +251,14 @@ def _function_to_openai_tool(name: str, func) -> dict:
         if param.default == inspect.Parameter.empty:
             required.append(param_name)
 
-    # Get description from first line of docstring
-    description = doc.split("\n")[0].strip() if doc else f"Execute {name}"
+    # Get description from first non-empty line of docstring
+    description = f"Execute {name}"
+    if doc:
+        for line in doc.split("\n"):
+            stripped = line.strip()
+            if stripped:
+                description = stripped
+                break
 
     return {
         "type": "function",
