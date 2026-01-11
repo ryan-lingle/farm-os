@@ -311,12 +311,26 @@ export function RichTextEditor({
       attributes: {
         class: cn(
           'prose prose-sm sm:prose-base max-w-none',
-          'prose-headings:font-semibold prose-headings:text-foreground',
-          'prose-p:text-foreground prose-p:leading-relaxed',
+          // Headings - Linear-style sizing (larger, more distinct)
+          'prose-headings:font-semibold prose-headings:text-foreground prose-headings:leading-tight prose-headings:tracking-tight',
+          '[&_h1]:text-[1.75rem] [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-4',
+          '[&_h2]:text-[1.375rem] [&_h2]:font-semibold [&_h2]:mt-5 [&_h2]:mb-3',
+          '[&_h3]:text-[1.125rem] [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2',
+          // Paragraphs
+          'prose-p:text-foreground prose-p:leading-relaxed prose-p:my-2',
+          // Bold/italic
           'prose-strong:text-foreground prose-strong:font-semibold',
-          'prose-code:text-foreground prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
-          'prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground',
-          'prose-ul:list-disc prose-ol:list-decimal',
+          'prose-em:text-foreground',
+          // Code
+          'prose-code:text-foreground prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono',
+          'prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-4',
+          // Blockquote
+          'prose-blockquote:border-l-4 prose-blockquote:border-border prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-4',
+          // Lists
+          'prose-ul:list-disc prose-ul:pl-6 prose-ul:my-2',
+          'prose-ol:list-decimal prose-ol:pl-6 prose-ol:my-2',
+          'prose-li:my-1',
+          // Focus
           'focus:outline-none min-h-[200px] p-4'
         ),
       },
