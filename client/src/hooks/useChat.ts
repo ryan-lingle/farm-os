@@ -41,10 +41,11 @@ export function useChat(): UseChatReturn {
 
       const response = await sendChatMessage(message, history);
 
-      // Add assistant response
+      // Add assistant response with any tool calls (for error display)
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: response.message,
+        toolCalls: response.tool_calls,
       };
       setMessages(prev => [...prev, assistantMessage]);
 

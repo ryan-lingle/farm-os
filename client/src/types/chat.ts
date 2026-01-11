@@ -5,6 +5,7 @@
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  toolCalls?: ToolCall[];
 }
 
 export interface ToolCall {

@@ -644,6 +644,7 @@ def create_quantity(
 def move_asset(
     asset_id: int,
     to_location_id: int,
+    asset_type: str = "animal",
     from_location_id: int = None,
     notes: str = None
 ) -> dict:
@@ -653,14 +654,33 @@ def move_asset(
     Args:
         asset_id: The asset to move
         to_location_id: Destination location ID
+        asset_type: Type of asset (animal, plant, equipment, etc.). Defaults to animal.
         from_location_id: Source location ID (optional, will be inferred from asset's current location)
         notes: Movement notes
     """
-    # First get the asset to find current location if not provided
+    # Validate that the destination location exists
+    location_result = _api_call(f"locations/{to_location_id}")
+    if not location_result.get("success"):
+        return {
+            "success": False,
+            "error": f"Location {to_location_id} not found. Please use list_locations() to see available locations.",
+            "error_code": "LOCATION_NOT_FOUND",
+            "available_action": "Call list_locations() to get valid location IDs"
+        }
+
+    # Validate that the asset exists
+    asset_result = _api_call(f"assets/{asset_type}/{asset_id}")
+    if not asset_result.get("success"):
+        return {
+            "success": False,
+            "error": f"Asset {asset_id} of type '{asset_type}' not found.",
+            "error_code": "ASSET_NOT_FOUND",
+            "available_action": f"Call list_assets(asset_type='{asset_type}') to get valid asset IDs"
+        }
+
+    # Get current location if not provided
     if from_location_id is None:
-        asset_result = _api_call(f"assets/animal/{asset_id}")
-        if asset_result.get("success"):
-            from_location_id = asset_result.get("data", {}).get("data", {}).get("attributes", {}).get("current_location_id")
+        from_location_id = asset_result.get("data", {}).get("data", {}).get("attributes", {}).get("current_location_id")
 
     # Create movement log
     log_result = create_log(
@@ -676,7 +696,7 @@ def move_asset(
     if log_result.get("success"):
         # Update the asset's current location
         update_result = _api_call(
-            f"assets/animal/{asset_id}",
+            f"assets/{asset_type}/{asset_id}",
             method="PATCH",
             data={
                 "data": {
