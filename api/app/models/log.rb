@@ -73,9 +73,15 @@ class Log < ApplicationRecord
 
   def execute_movement!
     return unless movement_log? && to_location_id.present?
-    
-    moved_assets.update_all(current_location_id: to_location_id)
-    update!(moved_at: Time.current) if moved_at.blank?
+
+    # Set flag to prevent Asset callback from creating duplicate movement logs
+    Asset.skip_movement_log_creation = true
+    begin
+      moved_assets.update_all(current_location_id: to_location_id)
+      update!(moved_at: Time.current) if moved_at.blank?
+    ensure
+      Asset.skip_movement_log_creation = false
+    end
   end
 
   def process_harvest!

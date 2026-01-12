@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { locationsApi, convertGeoJsonToFarmApi, convertFarmApiToGeoJson, Location as ApiLocation } from '@/lib/api';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
 
 // Frontend-friendly Location interface that uses GeoJSON for easy map integration
 export interface Location {
@@ -24,6 +25,7 @@ export interface Location {
   parent_id?: number | null;
   depth?: number;
   is_root?: boolean;
+  is_root_location?: boolean; // The designated root location for map centering
   is_leaf?: boolean;
   child_count?: number;
   createdAt: string;
@@ -48,6 +50,7 @@ function apiLocationToLocation(apiLoc: ApiLocation): Location {
     parent_id: apiLoc.attributes.parent_id,
     depth: apiLoc.attributes.depth,
     is_root: apiLoc.attributes.is_root,
+    is_root_location: apiLoc.attributes.is_root_location,
     is_leaf: apiLoc.attributes.is_leaf,
     child_count: apiLoc.attributes.child_count,
     createdAt: apiLoc.attributes.created_at,
@@ -139,7 +142,7 @@ export function useCreateLocation() {
     },
     onError: (error: any) => {
       console.error('Failed to create location:', error);
-      toast.error(`Failed to save location: ${error.message}`);
+      showError(error, 'Failed to save location');
     },
   });
 }
@@ -184,7 +187,7 @@ export function useUpdateLocation() {
     },
     onError: (error: any) => {
       console.error('Failed to update location:', error);
-      toast.error(`Failed to update location: ${error.message}`);
+      showError(error, 'Failed to update location');
     },
   });
 }
@@ -201,7 +204,7 @@ export function useDeleteLocation() {
     },
     onError: (error: any) => {
       console.error('Failed to delete location:', error);
-      toast.error(`Failed to delete location: ${error.message}`);
+      showError(error, 'Failed to delete location');
     },
   });
 }

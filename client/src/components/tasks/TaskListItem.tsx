@@ -4,11 +4,13 @@
  * Supports drag-and-drop for state changes
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, TaskState, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
+import { useTags } from '@/hooks/useTags';
+import { TagList } from '@/components/tags';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,6 +74,13 @@ export function TaskListItem({
   const navigate = useNavigate();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const { data: allTags } = useTags();
+
+  // Get tag objects for this task
+  const taskTags = useMemo(() => {
+    if (!allTags || !task.tagIds || task.tagIds.length === 0) return [];
+    return allTags.filter((tag) => task.tagIds.includes(tag.id));
+  }, [allTags, task.tagIds]);
 
   // Navigate to task detail page on click
   const handleClick = () => {
@@ -155,6 +164,13 @@ export function TaskListItem({
       >
         {task.title}
       </span>
+
+      {/* Tags */}
+      {taskTags.length > 0 && (
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <TagList tags={taskTags} size="sm" maxVisible={2} />
+        </div>
+      )}
 
       {/* Plan name */}
       {planName && (

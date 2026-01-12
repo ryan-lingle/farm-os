@@ -10,6 +10,7 @@ import {
   CycleFilters,
 } from '@/lib/api';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
 
 // Frontend-friendly Cycle interface
 export interface Cycle {
@@ -142,7 +143,7 @@ export function useCreateCycle() {
     },
     onError: (error: any) => {
       console.error('Failed to create cycle:', error);
-      toast.error(`Failed to create cycle: ${error.message}`);
+      showError(error, 'Failed to create cycle');
     },
   });
 }
@@ -170,7 +171,7 @@ export function useGenerateCycles() {
     },
     onError: (error: any) => {
       console.error('Failed to generate cycles:', error);
-      toast.error(`Failed to generate cycles: ${error.message}`);
+      showError(error, 'Failed to generate cycles');
     },
   });
 }
@@ -205,7 +206,7 @@ export function useUpdateCycle() {
     },
     onError: (error: any) => {
       console.error('Failed to update cycle:', error);
-      toast.error(`Failed to update cycle: ${error.message}`);
+      showError(error, 'Failed to update cycle');
     },
   });
 }
@@ -222,7 +223,7 @@ export function useDeleteCycle() {
     },
     onError: (error: any) => {
       console.error('Failed to delete cycle:', error);
-      toast.error(`Failed to delete cycle: ${error.message}`);
+      showError(error, 'Failed to delete cycle');
     },
   });
 }

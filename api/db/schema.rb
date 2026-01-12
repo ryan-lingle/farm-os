@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_12_000008) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_12_000011) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -92,6 +92,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000008) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "parent_id"
+    t.boolean "is_root_location", default: false, null: false
+    t.index ["is_root_location"], name: "index_locations_on_is_root_location", unique: true, where: "(is_root_location = true)"
     t.index ["parent_id"], name: "index_locations_on_parent_id"
   end
 
@@ -197,6 +199,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000008) do
     t.index ["log_id"], name: "index_quantities_on_log_id"
   end
 
+  create_table "tags", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "color", default: "#6B7280"
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_tags_on_name", unique: true
+  end
+
   create_table "task_assets", force: :cascade do |t|
     t.bigint "task_id", null: false
     t.bigint "asset_id", null: false
@@ -247,6 +258,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000008) do
     t.index ["source_task_id", "target_task_id", "relation_type"], name: "index_task_relations_unique", unique: true
     t.index ["source_task_id"], name: "index_task_relations_on_source_task_id"
     t.index ["target_task_id"], name: "index_task_relations_on_target_task_id"
+  end
+
+  create_table "task_tags", force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "tag_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["tag_id"], name: "index_task_tags_on_tag_id"
+    t.index ["task_id", "tag_id"], name: "index_task_tags_on_task_id_and_tag_id", unique: true
+    t.index ["task_id"], name: "index_task_tags_on_task_id"
   end
 
   create_table "tasks", force: :cascade do |t|
@@ -307,6 +328,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000008) do
   add_foreign_key "task_plan_references", "tasks"
   add_foreign_key "task_relations", "tasks", column: "source_task_id"
   add_foreign_key "task_relations", "tasks", column: "target_task_id"
+  add_foreign_key "task_tags", "tags"
+  add_foreign_key "task_tags", "tasks"
   add_foreign_key "tasks", "cycles"
   add_foreign_key "tasks", "plans"
   add_foreign_key "tasks", "tasks", column: "parent_id"

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MousePointer, MapPin, Pentagon, Menu, X, Map, Mountain, Satellite, Globe } from 'lucide-react';
+import { MousePointer, Pentagon, Menu, X, Mountain, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MapToolbarProps {
@@ -11,8 +11,6 @@ interface MapToolbarProps {
   sidebarOpen: boolean;
   mapStyle: 'outdoors' | 'terrain';
   onMapStyleChange: (style: 'outdoors' | 'terrain') => void;
-  terrainEnabled: boolean;
-  onTerrainToggle: () => void;
 }
 
 export const MapToolbar: React.FC<MapToolbarProps> = ({
@@ -22,8 +20,6 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
   sidebarOpen,
   mapStyle,
   onMapStyleChange,
-  terrainEnabled,
-  onTerrainToggle
 }) => {
   return (
     <div className="absolute top-4 left-4 z-10 flex gap-2">
@@ -71,9 +67,9 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
       </div>
 
       {/* Map Style Switcher */}
-      <ToggleGroup 
-        type="single" 
-        value={mapStyle} 
+      <ToggleGroup
+        type="single"
+        value={mapStyle}
         onValueChange={(value) => value && onMapStyleChange(value as any)}
         className="bg-map-toolbar border rounded-md shadow-toolbar"
       >
@@ -84,19 +80,6 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
           <Globe className="h-4 w-4" />
         </ToggleGroupItem>
       </ToggleGroup>
-
-      {/* 3D Terrain Toggle */}
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={onTerrainToggle}
-        className={cn(
-          "bg-map-toolbar border shadow-toolbar hover:bg-accent",
-          terrainEnabled && "bg-primary text-primary-foreground hover:bg-primary"
-        )}
-      >
-        3D
-      </Button>
     </div>
   );
 };

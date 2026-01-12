@@ -61,6 +61,17 @@ module Api
           tasks = tasks.joins(:task_locations).where(task_locations: { location_id: params[:filter][:location_id] })
         end
 
+        # Tag filter (supports multiple tags with AND logic)
+        if params.dig(:filter, :tag_id)
+          tag_ids = Array(params[:filter][:tag_id])
+          tasks = tasks.joins(:task_tags).where(task_tags: { tag_id: tag_ids }).distinct
+        end
+
+        # Tag name filter
+        if params.dig(:filter, :tag_name)
+          tasks = tasks.joins(:tags).where(tags: { name: params[:filter][:tag_name] }).distinct
+        end
+
         render json: TaskSerializer.new(tasks).serializable_hash
       end
 
@@ -90,6 +101,13 @@ module Api
           if params_log_ids.present?
             params_log_ids.each do |log_id|
               task.task_logs.create(log_id: log_id)
+            end
+          end
+
+          # Handle tag associations
+          if params_tag_ids.present?
+            params_tag_ids.each do |tag_id|
+              task.task_tags.create(tag_id: tag_id)
             end
           end
 
@@ -125,6 +143,14 @@ module Api
             @task.task_logs.destroy_all
             params_log_ids.each do |log_id|
               @task.task_logs.create(log_id: log_id)
+            end
+          end
+
+          # Handle tag associations if provided
+          if params_tag_ids
+            @task.task_tags.destroy_all
+            params_tag_ids.each do |tag_id|
+              @task.task_tags.create(tag_id: tag_id)
             end
           end
 
@@ -189,6 +215,16 @@ module Api
           params.dig(:data, :attributes, :log_ids)
         else
           params.dig(:task, :log_ids)
+        end
+      end
+
+      def params_tag_ids
+        if params[:_jsonapi].present?
+          params.dig(:_jsonapi, :data, :attributes, :tag_ids)
+        elsif params[:data].present?
+          params.dig(:data, :attributes, :tag_ids)
+        else
+          params.dig(:task, :tag_ids)
         end
       end
     end

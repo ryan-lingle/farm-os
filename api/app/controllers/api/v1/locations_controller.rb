@@ -70,7 +70,7 @@ module Api
           base_params = params.require(:location)
         end
 
-        permitted = base_params.permit(:name, :status, :notes, :location_type, :archived_at, :parent_id)
+        permitted = base_params.permit(:name, :status, :notes, :location_type, :archived_at, :parent_id, :is_root_location)
 
         # Handle geometry - support both farmAPI format and GeoJSON format
         if base_params[:geometry].present?

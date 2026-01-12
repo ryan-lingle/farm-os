@@ -49,6 +49,7 @@ const MapInterface = () => {
   const locationMarkers = useRef<mapboxgl.Marker[]>([]);
   const drawModeRef = useRef<'polygon' | 'select'>('select'); // Ref for use in event handlers
   const isInitialStyleRef = useRef(true); // Track initial style load
+  const hasInitializedViewRef = useRef(false); // Track if we've centered on root location
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
   const navigate = useNavigate();
 
@@ -56,8 +57,7 @@ const MapInterface = () => {
   const [hoveredLocationId, setHoveredLocationId] = useState<string | null>(null);
   const [drawMode, setDrawMode] = useState<'polygon' | 'select'>('select');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mapStyle, setMapStyle] = useState<'outdoors' | 'terrain'>('outdoors');
-  const [terrainEnabled, setTerrainEnabled] = useState(false);
+  const [mapStyle, setMapStyle] = useState<'outdoors' | 'terrain'>('terrain');
   
   // Location creation dialog state
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -330,35 +330,6 @@ const MapInterface = () => {
     });
   }, [mapStyle]);
 
-  // Handle terrain toggle
-  useEffect(() => {
-    if (!map.current) return;
-
-    const handleTerrainChange = () => {
-      if (terrainEnabled) {
-        if (!map.current?.getSource('mapbox-dem')) {
-          map.current?.addSource('mapbox-dem', {
-            type: 'raster-dem',
-            url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-            tileSize: 512,
-            maxzoom: 14
-          });
-        }
-        map.current?.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
-        console.log('3D terrain enabled');
-      } else {
-        map.current?.setTerrain(null);
-        console.log('3D terrain disabled');
-      }
-    };
-
-    if (map.current.isStyleLoaded()) {
-      handleTerrainChange();
-    } else {
-      map.current.once('style.load', handleTerrainChange);
-    }
-  }, [terrainEnabled, mapStyle]);
-
   // Handle draw mode changes
   useEffect(() => {
     console.log('[MapInterface] Draw mode effect triggered, drawMode:', drawMode);
@@ -382,9 +353,9 @@ const MapInterface = () => {
     }
   }, [drawMode]);
 
-  // Load saved locations on map
+  // Load saved locations on map and center on root location
   useEffect(() => {
-    if (!draw.current || isLoading) return;
+    if (!draw.current || !map.current || isLoading) return;
 
     // Clear existing features
     draw.current.deleteAll();
@@ -399,6 +370,22 @@ const MapInterface = () => {
       };
       draw.current?.add(feature);
     });
+
+    // Find and center on root location (only on initial load)
+    if (!hasInitializedViewRef.current && locations.length > 0) {
+      const rootLocation = locations.find(loc => loc.is_root_location);
+      if (rootLocation?.geometry && rootLocation.geometry.type === 'Polygon') {
+        const coords = rootLocation.geometry.coordinates[0] as number[][];
+        if (coords && coords.length > 0) {
+          const bounds = coords.reduce((bounds, coord) => {
+            return bounds.extend(coord as [number, number]);
+          }, new mapboxgl.LngLatBounds(coords[0] as [number, number], coords[0] as [number, number]));
+
+          map.current.fitBounds(bounds, { padding: 50, duration: 1000 });
+          hasInitializedViewRef.current = true;
+        }
+      }
+    }
   }, [locations, isLoading]);
 
   // Add location markers with asset counts
@@ -657,8 +644,6 @@ const MapInterface = () => {
           sidebarOpen={sidebarOpen}
           mapStyle={mapStyle}
           onMapStyleChange={setMapStyle}
-          terrainEnabled={terrainEnabled}
-          onTerrainToggle={() => setTerrainEnabled(!terrainEnabled)}
         />
 
         {/* Map */}

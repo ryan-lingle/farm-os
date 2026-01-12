@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, MapPin } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, MapPin, FileText, Calendar, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ import { Asset } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackReferences } from '@/components/BackReferences';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
+import { format } from 'date-fns';
 
 export const AssetDetail: React.FC = () => {
   const { assetType, id } = useParams<{ assetType: string; id: string }>();
@@ -80,7 +82,7 @@ export const AssetDetail: React.FC = () => {
       setIsEditing(false);
       toast.success('Asset updated successfully');
     } catch (error) {
-      toast.error('Failed to update asset');
+      showError(error, 'Failed to update asset');
     }
   };
 
@@ -91,7 +93,7 @@ export const AssetDetail: React.FC = () => {
       toast.success('Asset deleted successfully');
       navigate(`/records/assets/${assetType}`);
     } catch (error) {
-      toast.error('Failed to delete asset');
+      showError(error, 'Failed to delete asset');
     }
   };
 
@@ -160,7 +162,7 @@ export const AssetDetail: React.FC = () => {
       {/* Status and Metadata */}
       <div className="flex flex-wrap gap-3">
         <Badge variant={asset.attributes.status === 'active' ? 'default' : 'secondary'}>
-          {asset.attributes.status}
+          {asset.attributes.status === 'archived' ? 'Archived' : asset.attributes.status}
         </Badge>
         {currentLocation && (
           <Badge variant="outline" className="flex items-center gap-1">
@@ -212,7 +214,7 @@ export const AssetDetail: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -349,6 +351,62 @@ export const AssetDetail: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Activity Log Section */}
+      {(asset.attributes.log_count ?? 0) > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Activity Log
+            </CardTitle>
+            <CardDescription>
+              {asset.attributes.log_count} log {asset.attributes.log_count === 1 ? 'entry' : 'entries'} associated with this asset
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {(asset.attributes.recent_logs || []).map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">{log.name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {log.log_type}
+                      </Badge>
+                      {log.status && (
+                        <Badge variant={log.status === 'done' ? 'default' : 'secondary'} className="text-xs">
+                          {log.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(log.timestamp), 'MMM d, yyyy h:mm a')}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(`/records/logs/${log.log_type}`)}
+                    className="flex items-center gap-1"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {(asset.attributes.log_count ?? 0) > 10 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  Showing 10 most recent of {asset.attributes.log_count} logs
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

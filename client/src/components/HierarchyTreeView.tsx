@@ -257,9 +257,9 @@ export function LazyHierarchyTreeView<T extends TreeNode>({
             {renderLabel ? renderLabel(node) : defaultRenderLabel(node)}
           </div>
 
-          {/* Actions - always visible on mobile, hover on desktop */}
+          {/* Actions - show on hover */}
           {renderActions && (
-            <div className="flex-shrink-0 flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <div className="flex-shrink-0 hidden group-hover:flex items-center gap-0.5">
               {renderActions(node)}
             </div>
           )}

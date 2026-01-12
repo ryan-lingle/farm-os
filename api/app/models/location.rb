@@ -21,6 +21,14 @@ class Location < ApplicationRecord
 
   validate :validate_geometry
 
+  # Callbacks - automatically clear other root locations when setting a new one
+  before_save :clear_other_root_locations, if: -> { is_root_location? && is_root_location_changed? }
+
+  # Class method to get the root location
+  def self.root_location
+    find_by(is_root_location: true)
+  end
+
   # Scopes
   scope :active, -> { where(archived_at: nil) }
   scope :archived, -> { where.not(archived_at: nil) }
@@ -130,6 +138,10 @@ class Location < ApplicationRecord
   end
 
   private
+
+  def clear_other_root_locations
+    Location.where(is_root_location: true).where.not(id: id).update_all(is_root_location: false)
+  end
 
   def validate_geometry
     return if geometry.blank?

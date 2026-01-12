@@ -30,6 +30,26 @@ class AssetSerializer
     object.children.count
   end
 
+  # Log associations
+  has_many :logs
+
+  attribute :log_count do |object|
+    object.logs.count
+  end
+
+  attribute :recent_logs do |object|
+    object.logs.order(timestamp: :desc).limit(10).map do |log|
+      {
+        id: log.id,
+        name: log.name,
+        log_type: log.log_type,
+        timestamp: log.timestamp,
+        status: log.status,
+        to_location_id: log.to_location_id
+      }
+    end
+  end
+
   # Back-reference counts (entities that mention this asset)
   attribute :referencing_task_count do |object|
     object.task_assets.count

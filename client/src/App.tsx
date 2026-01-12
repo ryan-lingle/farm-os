@@ -11,6 +11,7 @@ import Locations from "./pages/Locations";
 import Records from "./pages/Records";
 import Assets from "./pages/records/Assets";
 import AssetDetail from "./pages/records/AssetDetail";
+import LocationDetail from "./pages/records/LocationDetail";
 import Logs from "./pages/records/Logs";
 import Animals from "./pages/records/assets/Animals";
 import Equipment from "./pages/records/assets/Equipment";
@@ -51,6 +52,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/locations" element={<Locations />} />
+                  <Route path="/locations/:id" element={<LocationDetail />} />
                   <Route path="/records" element={<Records />} />
                   <Route path="/records/assets" element={<Assets />} />
                   <Route path="/records/assets/:assetType" element={<Animals />} />

@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetsApi, Asset } from '@/lib/api';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
 
 export function useAssets(assetType: string, page = 1, perPage = 50, filters?: {
   root_only?: boolean;
@@ -48,7 +49,7 @@ export function useCreateAsset(assetType: string) {
       toast.success(`${assetType.charAt(0).toUpperCase() + assetType.slice(1)} created successfully`);
     },
     onError: (error: any) => {
-      toast.error(`Failed to create ${assetType}: ${error.message}`);
+      showError(error, `Failed to create ${assetType}`);
     },
   });
 }
@@ -65,7 +66,7 @@ export function useUpdateAsset(assetType: string) {
       toast.success(`${assetType.charAt(0).toUpperCase() + assetType.slice(1)} updated successfully`);
     },
     onError: (error: any) => {
-      toast.error(`Failed to update ${assetType}: ${error.message}`);
+      showError(error, `Failed to update ${assetType}`);
     },
   });
 }
@@ -80,7 +81,7 @@ export function useDeleteAsset(assetType: string) {
       toast.success(`${assetType.charAt(0).toUpperCase() + assetType.slice(1)} deleted successfully`);
     },
     onError: (error: any) => {
-      toast.error(`Failed to delete ${assetType}: ${error.message}`);
+      showError(error, `Failed to delete ${assetType}`);
     },
   });
 }

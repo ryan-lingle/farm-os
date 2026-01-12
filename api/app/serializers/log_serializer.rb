@@ -15,6 +15,22 @@ class LogSerializer
     log.movement_log?
   end
 
+  # Asset count and details for display
+  attribute :asset_count do |log|
+    log.assets.count
+  end
+
+  attribute :asset_details do |log|
+    log.assets.limit(20).map do |asset|
+      {
+        id: asset.id,
+        name: asset.name,
+        asset_type: asset.asset_type,
+        status: asset.status
+      }
+    end
+  end
+
   # Back-reference counts (entities that mention this log)
   attribute :referencing_task_count do |log|
     log.task_logs.count

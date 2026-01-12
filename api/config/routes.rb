@@ -44,6 +44,7 @@ Rails.application.routes.draw do
       # Task system routes
       resources :tasks, only: [ :index, :show, :create, :update, :destroy ]
       resources :plans, only: [ :index, :show, :create, :update, :destroy ]
+      resources :tags, only: [ :index, :show, :create, :update, :destroy ]
       resources :cycles, only: [ :index, :show, :create, :update, :destroy ] do
         collection do
           post :generate

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Eye, Pencil, LucideIcon, MapPin, Package, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Eye, Pencil, LucideIcon, MapPin, Package, Calendar, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -41,6 +42,7 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
   quantityLabel = 'Amount',
   defaultUnit = 'units',
 }) => {
+  const navigate = useNavigate();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
@@ -433,6 +435,35 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                       </div>
                     )}
                     {selectedLog.attributes.notes && <div><Label className="text-muted-foreground">Notes</Label><p className="text-sm mt-1">{selectedLog.attributes.notes}</p></div>}
+
+                    {/* Associated Assets */}
+                    {((selectedLog.attributes as any).asset_count > 0 || (selectedLog.attributes as any).asset_details?.length > 0) && (
+                      <div className="pt-4 border-t">
+                        <Label className="text-muted-foreground flex items-center gap-1">
+                          <Package className="h-3.5 w-3.5" />
+                          Associated Assets ({(selectedLog.attributes as any).asset_count || (selectedLog.attributes as any).asset_details?.length || 0})
+                        </Label>
+                        <div className="space-y-2 mt-2">
+                          {((selectedLog.attributes as any).asset_details || []).map((asset: any) => (
+                            <div
+                              key={asset.id}
+                              className="flex items-center justify-between p-2 border rounded-md hover:bg-accent/50 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setIsDetailDialogOpen(false);
+                                navigate(`/records/assets/${asset.asset_type}/${asset.id}`);
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{asset.name}</span>
+                                <Badge variant="outline" className="text-xs">{asset.asset_type}</Badge>
+                              </div>
+                              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground pt-4 border-t">
                       <div><Label className="text-muted-foreground">Created</Label><p>{new Date(selectedLog.attributes.created_at).toLocaleString()}</p></div>
                       <div><Label className="text-muted-foreground">Updated</Label><p>{new Date(selectedLog.attributes.updated_at).toLocaleString()}</p></div>

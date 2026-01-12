@@ -12,6 +12,7 @@ import {
   PlanFilters,
 } from '@/lib/api';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
 
 // Frontend-friendly Plan interface
 export interface Plan {
@@ -154,7 +155,7 @@ export function useCreatePlan() {
     },
     onError: (error: any) => {
       console.error('Failed to create plan:', error);
-      toast.error(`Failed to create plan: ${error.message}`);
+      showError(error, 'Failed to create plan');
     },
   });
 }
@@ -195,7 +196,7 @@ export function useUpdatePlan() {
     },
     onError: (error: any) => {
       console.error('Failed to update plan:', error);
-      toast.error(`Failed to update plan: ${error.message}`);
+      showError(error, 'Failed to update plan');
     },
   });
 }
@@ -212,7 +213,7 @@ export function useDeletePlan() {
     },
     onError: (error: any) => {
       console.error('Failed to delete plan:', error);
-      toast.error(`Failed to delete plan: ${error.message}`);
+      showError(error, 'Failed to delete plan');
     },
   });
 }

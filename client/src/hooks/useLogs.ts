@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { logsApi, Log } from '@/lib/api';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
 
 export function useLogs(logType: string, page = 1, perPage = 50) {
   return useQuery({
@@ -28,7 +29,7 @@ export function useCreateLog(logType: string) {
       toast.success(`${logType.charAt(0).toUpperCase() + logType.slice(1)} log created successfully`);
     },
     onError: (error: any) => {
-      toast.error(`Failed to create ${logType} log: ${error.message}`);
+      showError(error, `Failed to create ${logType} log`);
     },
   });
 }
@@ -45,7 +46,7 @@ export function useUpdateLog(logType: string) {
       toast.success(`${logType.charAt(0).toUpperCase() + logType.slice(1)} log updated successfully`);
     },
     onError: (error: any) => {
-      toast.error(`Failed to update ${logType} log: ${error.message}`);
+      showError(error, `Failed to update ${logType} log`);
     },
   });
 }
@@ -60,7 +61,7 @@ export function useDeleteLog(logType: string) {
       toast.success(`${logType.charAt(0).toUpperCase() + logType.slice(1)} log deleted successfully`);
     },
     onError: (error: any) => {
-      toast.error(`Failed to delete ${logType} log: ${error.message}`);
+      showError(error, `Failed to delete ${logType} log`);
     },
   });
 }
@@ -77,7 +78,7 @@ export function useCompleteLog(logType: string) {
       toast.success(`${logType.charAt(0).toUpperCase() + logType.slice(1)} log completed successfully`);
     },
     onError: (error: any) => {
-      toast.error(`Failed to complete ${logType} log: ${error.message}`);
+      showError(error, `Failed to complete ${logType} log`);
     },
   });
 }

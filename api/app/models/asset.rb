@@ -1,4 +1,7 @@
 class Asset < ApplicationRecord
+  # Thread-local flag to prevent infinite loops when movement logs update assets
+  thread_mattr_accessor :skip_movement_log_creation
+
   # Associations
   has_and_belongs_to_many :logs
   belongs_to :current_location, class_name: 'Location', optional: true
@@ -23,6 +26,7 @@ class Asset < ApplicationRecord
 
   # Callbacks
   before_validation :set_defaults
+  after_update :create_movement_log_on_location_change, if: :should_create_movement_log?
 
   # Methods
   def archive!
@@ -76,5 +80,29 @@ class Asset < ApplicationRecord
 
   def set_defaults
     self.status ||= "active"
+  end
+
+  def should_create_movement_log?
+    return false if Asset.skip_movement_log_creation
+    saved_change_to_current_location_id? && current_location_id.present?
+  end
+
+  def create_movement_log_on_location_change
+    from_location_id = current_location_id_before_last_save
+    to_location_id = current_location_id
+
+    log = Log.create!(
+      name: "#{name} moved to #{current_location&.name || 'new location'}",
+      log_type: "movement",
+      status: "done",
+      timestamp: Time.current,
+      from_location_id: from_location_id,
+      to_location_id: to_location_id,
+      moved_at: Time.current,
+      notes: "Automatically created from asset location change"
+    )
+
+    # Associate this asset with the movement log as a "moved" asset
+    AssetLog.create!(log: log, asset: self, role: "moved")
   end
 end

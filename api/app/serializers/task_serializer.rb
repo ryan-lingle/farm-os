@@ -12,6 +12,7 @@ class TaskSerializer
   has_many :assets
   has_many :locations
   has_many :logs
+  has_many :tags
 
   # Computed attributes
   attribute :estimate_display do |object|

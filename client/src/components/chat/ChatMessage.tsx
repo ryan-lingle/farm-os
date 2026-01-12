@@ -1,10 +1,12 @@
 /**
  * Chat message component.
  * Renders a single message bubble with appropriate styling based on role.
+ * Supports markdown rendering for rich text content.
  * Includes copy-pasteable error details when tool calls fail.
  */
 
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { Copy, Check, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -134,7 +136,23 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </div>
         )}
         {message.content && (
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <div className={cn(
+            'text-sm prose prose-sm max-w-none',
+            // Style markdown elements
+            'prose-p:my-1 prose-p:leading-relaxed',
+            'prose-headings:font-semibold prose-headings:my-2',
+            'prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5',
+            'prose-code:bg-black/10 prose-code:dark:bg-white/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none',
+            'prose-pre:bg-black/10 prose-pre:dark:bg-white/10 prose-pre:p-2 prose-pre:rounded prose-pre:my-2',
+            'prose-a:text-primary prose-a:underline prose-a:hover:no-underline',
+            'prose-blockquote:border-l-2 prose-blockquote:border-current prose-blockquote:pl-3 prose-blockquote:italic prose-blockquote:my-2',
+            // Inherit text color from parent
+            isUser
+              ? '[&_*]:text-primary-foreground'
+              : '[&_*]:text-foreground prose-strong:text-foreground'
+          )}>
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
         )}
         {!isUser && <ErrorDetails errors={errors} />}
       </div>

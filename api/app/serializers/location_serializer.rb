@@ -2,7 +2,7 @@
 class LocationSerializer
   include JSONAPI::Serializer
 
-  attributes :name, :status, :notes, :location_type, :geometry, :parent_id, :archived_at, :created_at, :updated_at
+  attributes :name, :status, :notes, :location_type, :geometry, :parent_id, :archived_at, :created_at, :updated_at, :is_root_location
   
   # Relationships
   has_many :assets
@@ -23,6 +23,34 @@ class LocationSerializer
   # Helper attribute for asset count
   attribute :asset_count do |location|
     location.assets.count
+  end
+
+  # Movement log counts
+  attribute :incoming_movement_count do |location|
+    location.incoming_movements.count
+  end
+
+  attribute :outgoing_movement_count do |location|
+    location.outgoing_movements.count
+  end
+
+  # Recent movements for quick view
+  attribute :recent_movements do |location|
+    movements = (location.incoming_movements + location.outgoing_movements)
+                .sort_by { |m| m.timestamp || m.created_at }
+                .reverse
+                .first(10)
+    movements.map do |log|
+      {
+        id: log.id,
+        name: log.name,
+        log_type: log.log_type,
+        timestamp: log.timestamp,
+        direction: log.to_location_id == location.id ? 'incoming' : 'outgoing',
+        from_location_id: log.from_location_id,
+        to_location_id: log.to_location_id
+      }
+    end
   end
 
   # Hierarchy attributes

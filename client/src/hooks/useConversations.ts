@@ -11,6 +11,7 @@ import {
   ConversationFilters,
 } from '@/lib/api';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
 import type { ChatMessage } from '@/types/chat';
 
 // Frontend-friendly Conversation interface
@@ -157,7 +158,7 @@ export function useCreateConversation() {
     },
     onError: (error: any) => {
       console.error('Failed to create conversation:', error);
-      toast.error(`Failed to create conversation: ${error.message}`);
+      showError(error, 'Failed to create conversation');
     },
   });
 }
@@ -195,7 +196,7 @@ export function useUpdateConversation() {
     },
     onError: (error: any) => {
       console.error('Failed to update conversation:', error);
-      toast.error(`Failed to update conversation: ${error.message}`);
+      showError(error, 'Failed to update conversation');
     },
   });
 }
@@ -238,7 +239,7 @@ export function useDeleteConversation() {
     },
     onError: (error: any) => {
       console.error('Failed to delete conversation:', error);
-      toast.error(`Failed to delete conversation: ${error.message}`);
+      showError(error, 'Failed to delete conversation');
     },
   });
 }

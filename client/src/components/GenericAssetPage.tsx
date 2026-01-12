@@ -168,7 +168,7 @@ export const GenericAssetPage: React.FC<GenericAssetPageProps> = ({
                           {asset.attributes.quantity} {quantityLabel}
                         </span>
                       )}
-                      <span className={`text-xs px-2 py-1 rounded-full ${asset.attributes.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>{asset.attributes.status}</span>
+                      <span className={`text-xs px-2 py-1 rounded-full capitalize ${asset.attributes.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>{asset.attributes.status}</span>
                       {asset.attributes.current_location_id && (
                         <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 flex items-center gap-1">
                           <MapPin className="h-3 w-3" />

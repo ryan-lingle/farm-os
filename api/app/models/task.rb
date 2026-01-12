@@ -17,6 +17,8 @@ class Task < ApplicationRecord
   has_many :logs, through: :task_logs
   has_many :task_plan_references, dependent: :destroy
   has_many :referenced_plans, through: :task_plan_references, source: :plan
+  has_many :task_tags, dependent: :destroy
+  has_many :tags, through: :task_tags
 
   # Back-references (plans that mention this task)
   has_many :plan_task_references, dependent: :destroy

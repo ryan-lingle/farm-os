@@ -8,9 +8,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTask, useUpdateTask, useDeleteTask, TaskState, useSubtasks } from '@/hooks/useTasks';
 import { usePlans } from '@/hooks/usePlans';
 import { useCycles } from '@/hooks/useCycles';
+import { useTags } from '@/hooks/useTags';
 import { useCreateConversation } from '@/hooks/useConversations';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { TaskList } from '@/components/tasks';
+import { TagInput } from '@/components/tags';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +39,7 @@ import {
   MoreHorizontal,
   Trash2,
   AlertCircle,
+  Tags,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -64,6 +67,7 @@ export default function TaskPage() {
   const { subtasks } = useSubtasks(id);
   const { plans } = usePlans();
   const { cycles } = useCycles();
+  const { data: allTags } = useTags();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const createConversation = useCreateConversation();
@@ -146,6 +150,15 @@ export default function TaskPage() {
       updateTask.mutate({
         id: task.id,
         updates: { targetDate: date ? format(date, 'yyyy-MM-dd') : null },
+      });
+    }
+  };
+
+  const handleTagsChange = (tagIds: string[]) => {
+    if (task) {
+      updateTask.mutate({
+        id: task.id,
+        updates: { tagIds: tagIds.map((id) => parseInt(id, 10)) },
       });
     }
   };
@@ -419,6 +432,20 @@ export default function TaskPage() {
                     placeholder="None"
                     className="border-none shadow-none h-auto p-0 w-auto text-sm focus-visible:ring-0"
                   />
+                </div>
+
+                {/* Tags */}
+                <div className="flex items-start py-3">
+                  <div className="flex items-center gap-2 w-24 text-sm text-muted-foreground pt-0.5">
+                    <Tags className="h-4 w-4" />
+                    <span>Tags</span>
+                  </div>
+                  <div className="flex-1">
+                    <TagInput
+                      selectedTagIds={task.tagIds || []}
+                      onTagsChange={handleTagsChange}
+                    />
+                  </div>
                 </div>
               </div>
 

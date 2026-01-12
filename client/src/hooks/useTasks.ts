@@ -7,10 +7,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   tasksApi,
   Task as ApiTask,
+  Tag,
   TaskState,
   TaskFilters,
 } from '@/lib/api';
 import { toast } from 'sonner';
+import { showError } from '@/components/ErrorToast';
 
 // Frontend-friendly Task interface
 export interface Task {
@@ -27,6 +29,8 @@ export interface Task {
   cycleId?: number | null;
   createdAt: string;
   updatedAt: string;
+  // Tags
+  tagIds: string[];
   // Computed fields
   depth?: number;
   isRoot?: boolean;
@@ -37,11 +41,15 @@ export interface Task {
   isBlocked?: boolean;
   blocksCount?: number;
   blockedByCount?: number;
+  referencingPlanCount?: number;
 }
 
 // Convert API Task to frontend Task
 function apiTaskToTask(apiTask: ApiTask): Task {
   const attrs = apiTask.attributes;
+  // Extract tag IDs from relationships
+  const tagIds = apiTask.relationships?.tags?.data?.map((t) => t.id) || [];
+
   return {
     id: apiTask.id,
     title: attrs.title,
@@ -56,6 +64,7 @@ function apiTaskToTask(apiTask: ApiTask): Task {
     cycleId: attrs.cycle_id,
     createdAt: attrs.created_at,
     updatedAt: attrs.updated_at,
+    tagIds,
     depth: attrs.depth,
     isRoot: attrs.is_root,
     isLeaf: attrs.is_leaf,
@@ -65,6 +74,7 @@ function apiTaskToTask(apiTask: ApiTask): Task {
     isBlocked: attrs.is_blocked,
     blocksCount: attrs.blocks_count,
     blockedByCount: attrs.blocked_by_count,
+    referencingPlanCount: (attrs as any).referencing_plan_count,
   };
 }
 
@@ -179,6 +189,7 @@ export function useCreateTask() {
       cycleId?: number;
       assetIds?: number[];
       locationIds?: number[];
+      tagIds?: number[];
     }) => {
       const response = await tasksApi.create({
         title: data.title,
@@ -191,6 +202,7 @@ export function useCreateTask() {
         cycle_id: data.cycleId,
         asset_ids: data.assetIds,
         location_ids: data.locationIds,
+        tag_ids: data.tagIds,
       });
       return apiTaskToTask(response.data);
     },
@@ -200,7 +212,7 @@ export function useCreateTask() {
     },
     onError: (error: any) => {
       console.error('Failed to create task:', error);
-      toast.error(`Failed to create task: ${error.message}`);
+      showError(error, 'Failed to create task');
     },
   });
 }
@@ -226,6 +238,7 @@ export function useUpdateTask() {
         cycleId: number | null;
         assetIds: number[];
         locationIds: number[];
+        tagIds: number[];
       }>;
     }) => {
       const apiUpdates: any = {};
@@ -239,6 +252,7 @@ export function useUpdateTask() {
       if (updates.cycleId !== undefined) apiUpdates.cycle_id = updates.cycleId;
       if (updates.assetIds !== undefined) apiUpdates.asset_ids = updates.assetIds;
       if (updates.locationIds !== undefined) apiUpdates.location_ids = updates.locationIds;
+      if (updates.tagIds !== undefined) apiUpdates.tag_ids = updates.tagIds;
 
       const response = await tasksApi.update(id, apiUpdates);
       return apiTaskToTask(response.data);
@@ -249,7 +263,7 @@ export function useUpdateTask() {
     },
     onError: (error: any) => {
       console.error('Failed to update task:', error);
-      toast.error(`Failed to update task: ${error.message}`);
+      showError(error, 'Failed to update task');
     },
   });
 }
@@ -278,7 +292,7 @@ export function useDeleteTask() {
     },
     onError: (error: any) => {
       console.error('Failed to delete task:', error);
-      toast.error(`Failed to delete task: ${error.message}`);
+      showError(error, 'Failed to delete task');
     },
   });
 }

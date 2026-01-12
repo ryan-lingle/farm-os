@@ -46,6 +46,30 @@ export interface Asset {
     is_root?: boolean;
     is_leaf?: boolean;
     child_count?: number;
+    // Log associations
+    log_count?: number;
+    recent_logs?: Array<{
+      id: number;
+      name: string;
+      log_type: string;
+      timestamp: string;
+      status: string;
+      to_location_id?: number | null;
+    }>;
+    // Back-references
+    referencing_task_count?: number;
+    referencing_plan_count?: number;
+    referencing_tasks?: Array<{
+      id: number;
+      title: string;
+      state: string;
+      plan_id: number;
+    }>;
+    referencing_plans?: Array<{
+      id: number;
+      name: string;
+      status: string;
+    }>;
   };
   relationships?: {
     current_location?: {
@@ -55,6 +79,9 @@ export interface Asset {
       data: { id: string; type: string } | null;
     };
     children?: {
+      data: Array<{ id: string; type: string }>;
+    };
+    logs?: {
       data: Array<{ id: string; type: string }>;
     };
   };
@@ -86,9 +113,24 @@ export interface Log {
     log_type: string;
     to_location_id?: number | null;
     from_location_id?: number | null;
+    is_movement?: boolean;
+    // Asset associations
+    asset_count?: number;
+    asset_details?: Array<{
+      id: number;
+      name: string;
+      asset_type: string;
+      status: string;
+    }>;
+    // Back-references
+    referencing_task_count?: number;
+    referencing_plan_count?: number;
   };
   relationships?: {
     asset?: {
+      data: Array<{ id: string; type: string }>;
+    };
+    assets?: {
       data: Array<{ id: string; type: string }>;
     };
     source_assets?: {
@@ -138,6 +180,7 @@ export interface Location {
     parent_id?: number | null;
     depth?: number;
     is_root?: boolean;
+    is_root_location?: boolean; // The designated root location for map centering
     is_leaf?: boolean;
     child_count?: number;
   };
@@ -193,6 +236,21 @@ export interface Task {
     assets?: { data: Array<{ id: string; type: string }> };
     locations?: { data: Array<{ id: string; type: string }> };
     logs?: { data: Array<{ id: string; type: string }> };
+    tags?: { data: Array<{ id: string; type: string }> };
+  };
+}
+
+// Tags for organizing tasks
+export interface Tag {
+  id: string;
+  type: 'tag';
+  attributes: {
+    name: string;
+    color: string;
+    description?: string | null;
+    created_at: string;
+    updated_at: string;
+    task_count?: number;
   };
 }
 
@@ -685,6 +743,8 @@ export interface TaskFilters {
   plan_id?: number | string;
   cycle_id?: number | string;
   parent_id?: number | string;
+  tag_id?: number | string;
+  tag_name?: string;
   unscheduled?: boolean;
   active?: boolean;
   completed?: boolean;
@@ -730,6 +790,12 @@ export const tasksApi = {
     if (filters?.overdue) {
       params.append('filter[overdue]', 'true');
     }
+    if (filters?.tag_id) {
+      params.append('filter[tag_id]', filters.tag_id.toString());
+    }
+    if (filters?.tag_name) {
+      params.append('filter[tag_name]', filters.tag_name);
+    }
 
     return fetchApi<ApiResponse<Task[]>>(
       `/api/v1/tasks?${params.toString()}`
@@ -758,6 +824,7 @@ export const tasksApi = {
     cycle_id?: number;
     asset_ids?: number[];
     location_ids?: number[];
+    tag_ids?: number[];
   }) => {
     return fetchApi<ApiResponse<Task>>(
       `/api/v1/tasks`,
@@ -779,6 +846,7 @@ export const tasksApi = {
     cycle_id: number | null;
     asset_ids: number[];
     location_ids: number[];
+    tag_ids: number[];
   }>) => {
     return fetchApi<ApiResponse<Task>>(
       `/api/v1/tasks/${id}`,
@@ -1099,6 +1167,65 @@ export const taskRelationsApi = {
       source_task_id: taskId,
       relation_type: 'blocks',
     });
+  },
+};
+
+// ===========================
+// Tags API
+// ===========================
+export const tagsApi = {
+  list: async (page = 1, perPage = 50) => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+    });
+
+    return fetchApi<ApiResponse<Tag[]>>(
+      `/api/v1/tags?${params.toString()}`
+    );
+  },
+
+  get: async (id: string | number) => {
+    return fetchApi<ApiResponse<Tag>>(
+      `/api/v1/tags/${id}`
+    );
+  },
+
+  create: async (data: {
+    name: string;
+    color?: string;
+    description?: string;
+  }) => {
+    return fetchApi<ApiResponse<Tag>>(
+      `/api/v1/tags`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ data: { type: 'tag', attributes: data } }),
+      }
+    );
+  },
+
+  update: async (id: string | number, data: Partial<{
+    name: string;
+    color: string;
+    description: string | null;
+  }>) => {
+    return fetchApi<ApiResponse<Tag>>(
+      `/api/v1/tags/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ data: { attributes: data } }),
+      }
+    );
+  },
+
+  delete: async (id: string | number) => {
+    return fetchApi<void>(
+      `/api/v1/tags/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
   },
 };
 

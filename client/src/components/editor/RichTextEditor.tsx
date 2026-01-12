@@ -364,7 +364,13 @@ export function RichTextEditor({
             const reader = new FileReader();
             reader.onload = () => {
               const url = reader.result as string;
-              editor?.chain().focus().setImage({ src: url }).run();
+              const { tr, schema } = view.state;
+              const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+              if (pos) {
+                const node = schema.nodes.image.create({ src: url });
+                const transaction = tr.insert(pos.pos, node);
+                view.dispatch(transaction);
+              }
             };
             reader.readAsDataURL(file);
             return true;
@@ -383,7 +389,10 @@ export function RichTextEditor({
                 const reader = new FileReader();
                 reader.onload = () => {
                   const url = reader.result as string;
-                  editor?.chain().focus().setImage({ src: url }).run();
+                  const { tr, schema, selection } = view.state;
+                  const node = schema.nodes.image.create({ src: url });
+                  const transaction = tr.insert(selection.from, node);
+                  view.dispatch(transaction);
                 };
                 reader.readAsDataURL(file);
               }

@@ -30,12 +30,15 @@ module Api
         @log = Log.new(log_params.except(:asset_ids))
         @log.log_type = @log_type
 
-        # Handle asset associations
-        if log_params[:asset_ids].present?
-          @log.asset_ids = log_params[:asset_ids]
-        end
-
         if @log.save
+          # Handle asset associations with appropriate role based on log type
+          if log_params[:asset_ids].present?
+            role = determine_asset_role(@log_type)
+            log_params[:asset_ids].each do |asset_id|
+              AssetLog.create!(log: @log, asset_id: asset_id, role: role)
+            end
+          end
+
           # If this is a completed movement log, execute the movement
           @log.complete! if @log.status == "done" && @log.movement_log?
           render_jsonapi(@log)
@@ -92,6 +95,19 @@ module Api
         end
 
         permitted
+      end
+
+      def determine_asset_role(log_type)
+        case log_type
+        when "movement"
+          "moved"
+        when "harvest"
+          "source"
+        when "input"
+          "input"
+        else
+          "subject"
+        end
       end
     end
   end

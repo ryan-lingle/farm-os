@@ -106,7 +106,7 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="w-80 bg-map-sidebar border-r border-border h-full flex flex-col shadow-lg">
+    <div className="w-96 bg-map-sidebar border-r border-border h-full flex flex-col shadow-lg">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <h2 className="text-lg font-semibold text-map-sidebar-foreground mb-3">Locations</h2>
@@ -157,7 +157,7 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
           <Alert className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800">
             <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <AlertDescription className="text-xs text-blue-800 dark:text-blue-300 ml-2">
-              💡 Click the blue asset count circles on the map to see details
+              Click the blue asset count circles on the map to see details
             </AlertDescription>
           </Alert>
         </div>
