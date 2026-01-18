@@ -3,7 +3,7 @@ class LogSerializer
 
   set_type :log
 
-  attributes :name, :status, :notes, :timestamp, :log_type, :from_location_id, :to_location_id, :moved_at, :created_at, :updated_at
+  attributes :name, :status, :notes, :timestamp, :log_type, :from_location_id, :to_location_id, :moved_at, :archived_at, :created_at, :updated_at
 
   has_many :quantities
   has_many :assets

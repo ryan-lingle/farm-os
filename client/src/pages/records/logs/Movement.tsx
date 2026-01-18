@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Archive, Eye, Pencil, LucideIcon, MapPin, Package, Calendar, ExternalLink } from 'lucide-react';
+import { ArrowRight, Plus, Trash2, Eye, Pencil, MapPin, Package, Calendar, ExternalLink, MoveRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -19,36 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
-interface GenericLogPageProps {
-  logType: string;
-  title: string;
-  titlePlural: string;
-  description: string;
-  icon: LucideIcon;
-  iconColor: string;
-  showQuantity?: boolean;
-  quantityLabel?: string;
-  defaultUnit?: string;
-  unitOptions?: string[]; // Dropdown options for unit field
-  // Harvest-specific: single asset source with auto-location
-  singleAssetSource?: boolean;
-  assetSourceLabel?: string;
-}
-
-export const GenericLogPage: React.FC<GenericLogPageProps> = ({
-  logType,
-  title,
-  titlePlural,
-  description,
-  icon: Icon,
-  iconColor,
-  showQuantity = false,
-  quantityLabel = 'Amount',
-  defaultUnit = 'units',
-  unitOptions,
-  singleAssetSource = false,
-  assetSourceLabel = 'Source Asset',
-}) => {
+const Movement = () => {
   const navigate = useNavigate();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
@@ -58,10 +29,9 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
     name: '',
     timestamp: new Date().toISOString().slice(0, 16),
     notes: '',
-    location_id: '' as string,
+    from_location_id: '' as string,
+    to_location_id: '' as string,
     asset_ids: [] as string[],
-    quantity_value: '',
-    quantity_unit: defaultUnit,
   });
   const [editFormData, setEditFormData] = useState({
     name: '',
@@ -69,7 +39,7 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
     notes: '',
   });
 
-  const { data, isLoading, error } = useLogs(logType);
+  const { data, isLoading, error } = useLogs('movement');
   const { locations } = useLocations();
 
   // Get all asset types for selection
@@ -83,9 +53,9 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
     ...(equipmentData?.data || []),
   ];
 
-  const createLog = useCreateLog(logType);
-  const updateLog = useUpdateLog(logType);
-  const deleteLog = useDeleteLog(logType);
+  const createLog = useCreateLog('movement');
+  const updateLog = useUpdateLog('movement');
+  const deleteLog = useDeleteLog('movement');
 
   const toggleAssetSelection = (assetId: string) => {
     setCreateFormData(prev => ({
@@ -96,19 +66,6 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
     }));
   };
 
-  // For single asset source mode (harvests): select one asset and auto-fill location
-  const selectSingleAsset = (assetId: string) => {
-    const asset = allAssets.find(a => a.id === assetId);
-    const locationId = asset?.attributes?.current_location_id;
-
-    setCreateFormData(prev => ({
-      ...prev,
-      asset_ids: assetId ? [assetId] : [],
-      // Auto-fill location from asset's current location
-      location_id: locationId ? String(locationId) : prev.location_id,
-    }));
-  };
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -116,23 +73,19 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
       name: createFormData.name,
       timestamp: new Date(createFormData.timestamp).toISOString(),
       notes: createFormData.notes,
-      status: 'done',
+      status: 'done', // Movement logs should be done immediately to trigger location update
     };
 
-    if (createFormData.location_id) {
-      logData.to_location_id = Number(createFormData.location_id);
+    if (createFormData.from_location_id) {
+      logData.from_location_id = Number(createFormData.from_location_id);
+    }
+
+    if (createFormData.to_location_id) {
+      logData.to_location_id = Number(createFormData.to_location_id);
     }
 
     if (createFormData.asset_ids.length > 0) {
       logData.asset_ids = createFormData.asset_ids.map(id => Number(id));
-    }
-
-    if (showQuantity && createFormData.quantity_value) {
-      logData.quantities_attributes = [{
-        value: parseFloat(createFormData.quantity_value),
-        unit: createFormData.quantity_unit,
-        quantity_type: logType,
-      }];
     }
 
     await createLog.mutateAsync(logData);
@@ -141,10 +94,9 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
       name: '',
       timestamp: new Date().toISOString().slice(0, 16),
       notes: '',
-      location_id: '',
+      from_location_id: '',
+      to_location_id: '',
       asset_ids: [],
-      quantity_value: '',
-      quantity_unit: defaultUnit,
     });
   };
 
@@ -181,6 +133,11 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
     setIsDetailDialogOpen(true);
   };
 
+  const getLocationName = (locationId: number | null | undefined) => {
+    if (!locationId) return null;
+    return locations.find(loc => Number(loc.id) === locationId)?.name || 'Unknown';
+  };
+
   const logs = data?.data || [];
   const totalCount = data?.meta?.total || logs.length;
 
@@ -203,22 +160,22 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            <Icon className={`h-8 w-8 ${iconColor}`} />
-            {titlePlural}
+            <MoveRight className="h-8 w-8 text-cyan-600" />
+            Movements
           </h1>
-          <p className="text-muted-foreground mt-2">{description}</p>
+          <p className="text-muted-foreground mt-2">Track asset movements between locations</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              New {title}
+              New Movement
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Record {title}</DialogTitle>
-              <DialogDescription>Create a new {logType} log entry</DialogDescription>
+              <DialogTitle>Record Movement</DialogTitle>
+              <DialogDescription>Log an asset movement from one location to another</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
@@ -227,7 +184,7 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                   id="name"
                   value={createFormData.name}
                   onChange={(e) => setCreateFormData({ ...createFormData, name: e.target.value })}
-                  placeholder={`e.g., ${title} - ${format(new Date(), 'MMM yyyy')}`}
+                  placeholder="e.g., Move chickens to south pasture"
                   required
                 />
               </div>
@@ -243,111 +200,65 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                   value={createFormData.timestamp}
                   onChange={(e) => setCreateFormData({ ...createFormData, timestamp: e.target.value })}
                 />
-                <p className="text-xs text-muted-foreground">When did this {title.toLowerCase()} occur?</p>
               </div>
 
-              {showQuantity && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">{quantityLabel}</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={createFormData.quantity_value}
-                      onChange={(e) => setCreateFormData({ ...createFormData, quantity_value: e.target.value })}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="unit">Unit</Label>
-                    {unitOptions ? (
-                      <Select
-                        value={createFormData.quantity_unit}
-                        onValueChange={(value) => setCreateFormData({ ...createFormData, quantity_unit: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select unit" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {unitOptions.map((unit) => (
-                            <SelectItem key={unit} value={unit}>
-                              {unit}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Input
-                        id="unit"
-                        value={createFormData.quantity_unit}
-                        onChange={(e) => setCreateFormData({ ...createFormData, quantity_unit: e.target.value })}
-                        placeholder="lbs, kg, gallons, etc."
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Single Asset Source (for harvests) - comes BEFORE location */}
-              {singleAssetSource && allAssets.length > 0 && (
+              {/* Location Selection - From and To */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>
-                    <Package className="h-3.5 w-3.5 inline mr-1" />
-                    {assetSourceLabel} *
+                  <Label htmlFor="from_location">
+                    <MapPin className="h-3.5 w-3.5 inline mr-1" />
+                    From Location
                   </Label>
                   <Select
-                    value={createFormData.asset_ids[0] || 'none'}
-                    onValueChange={(value) => selectSingleAsset(value === 'none' ? '' : value)}
+                    value={createFormData.from_location_id || 'none'}
+                    onValueChange={(value) => setCreateFormData({ ...createFormData, from_location_id: value === 'none' ? '' : value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select an asset" />
+                      <SelectValue placeholder="Select source" />
                     </SelectTrigger>
                     <SelectContent>
-                      {allAssets.map((asset) => (
-                        <SelectItem key={asset.id} value={asset.id}>
-                          {asset.attributes.name} ({asset.attributes.asset_type})
+                      <SelectItem value="none">None</SelectItem>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Select the asset this {title.toLowerCase()} came from</p>
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="location">
-                  <MapPin className="h-3.5 w-3.5 inline mr-1" />
-                  Location
-                  {singleAssetSource && createFormData.location_id && (
-                    <span className="text-muted-foreground font-normal ml-2">(auto-filled from asset)</span>
-                  )}
-                </Label>
-                <Select
-                  value={createFormData.location_id || 'none'}
-                  onValueChange={(value) => setCreateFormData({ ...createFormData, location_id: value === 'none' ? '' : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a location (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="to_location">
+                    <MapPin className="h-3.5 w-3.5 inline mr-1" />
+                    To Location *
+                  </Label>
+                  <Select
+                    value={createFormData.to_location_id || 'none'}
+                    onValueChange={(value) => setCreateFormData({ ...createFormData, to_location_id: value === 'none' ? '' : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select destination" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Moving an asset will automatically update its current location when the log is saved.
+              </p>
 
-              {/* Multi-select Assets (for other log types) */}
-              {!singleAssetSource && allAssets.length > 0 && (
+              {allAssets.length > 0 && (
                 <div className="space-y-2">
                   <Label>
                     <Package className="h-3.5 w-3.5 inline mr-1" />
-                    Related Assets
+                    Assets to Move *
                   </Label>
                   <div className="border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
                     {allAssets.length === 0 ? (
@@ -368,12 +279,17 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                             <Badge variant="outline" className="text-xs">
                               {asset.attributes.asset_type}
                             </Badge>
+                            {asset.attributes.current_location_id && (
+                              <span className="text-xs text-muted-foreground">
+                                @ {getLocationName(asset.attributes.current_location_id)}
+                              </span>
+                            )}
                           </label>
                         </div>
                       ))
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">Select assets involved in this {title.toLowerCase()}</p>
+                  <p className="text-xs text-muted-foreground">Select assets being moved to the new location</p>
                 </div>
               )}
 
@@ -383,15 +299,15 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                   id="notes"
                   value={createFormData.notes}
                   onChange={(e) => setCreateFormData({ ...createFormData, notes: e.target.value })}
-                  placeholder="Additional notes..."
-                  rows={4}
+                  placeholder="Reason for movement, conditions, etc..."
+                  rows={3}
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-                <Button type="submit" disabled={createLog.isPending}>
-                  {createLog.isPending ? 'Recording...' : 'Record Log'}
+                <Button type="submit" disabled={createLog.isPending || createFormData.asset_ids.length === 0}>
+                  {createLog.isPending ? 'Recording...' : 'Record Movement'}
                 </Button>
               </div>
             </form>
@@ -401,21 +317,21 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
-          <CardHeader><CardTitle>Total {titlePlural}</CardTitle><CardDescription>All recorded entries</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Total Movements</CardTitle><CardDescription>All recorded movements</CardDescription></CardHeader>
           <CardContent>{isLoading ? <Skeleton className="h-9 w-16" /> : <p className="text-3xl font-bold">{totalCount}</p>}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>This Month</CardTitle><CardDescription>Entries this month</CardDescription></CardHeader>
+          <CardHeader><CardTitle>This Month</CardTitle><CardDescription>Movements this month</CardDescription></CardHeader>
           <CardContent>{isLoading ? <Skeleton className="h-9 w-16" /> : <p className="text-3xl font-bold">{thisMonthCount}</p>}</CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>This Week</CardTitle><CardDescription>Entries this week</CardDescription></CardHeader>
+          <CardHeader><CardTitle>This Week</CardTitle><CardDescription>Movements this week</CardDescription></CardHeader>
           <CardContent>{isLoading ? <Skeleton className="h-9 w-16" /> : <p className="text-3xl font-bold">{thisWeekCount}</p>}</CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader><CardTitle>{title} History</CardTitle><CardDescription>All {logType} logs</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Movement History</CardTitle><CardDescription>All movement logs</CardDescription></CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
@@ -423,42 +339,53 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
             <div className="text-center py-12 text-destructive"><p className="text-lg mb-2">Error loading logs</p><p className="text-sm">{error.message}</p></div>
           ) : logs.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              <Icon className={`h-16 w-16 mx-auto mb-4 opacity-50 ${iconColor}`} />
-              <p className="text-lg mb-2">No {titlePlural.toLowerCase()} recorded</p>
-              <p className="text-sm mb-4">Start by recording your first {title.toLowerCase()}</p>
-              <Button onClick={() => setIsCreateDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Add First {title}</Button>
+              <MoveRight className="h-16 w-16 mx-auto mb-4 opacity-50 text-cyan-600" />
+              <p className="text-lg mb-2">No movements recorded</p>
+              <p className="text-sm mb-4">Start by recording your first asset movement</p>
+              <Button onClick={() => setIsCreateDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Add First Movement</Button>
             </div>
           ) : (
             <div className="space-y-3">
-              {logs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
-                  <div className="flex-1 cursor-pointer" onClick={() => openDetailDialog(log)}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold">{log.attributes.name}</h3>
-                      <Badge variant="outline" className="text-xs">
-                        {format(new Date(log.attributes.timestamp), 'MMM d, yyyy h:mm a')}
-                      </Badge>
-                      {log.attributes.to_location_id && (
-                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {locations.find(loc => Number(loc.id) === log.attributes.to_location_id)?.name || 'Unknown'}
+              {logs.map((log) => {
+                const fromLocation = getLocationName(log.attributes.from_location_id);
+                const toLocation = getLocationName(log.attributes.to_location_id);
+
+                return (
+                  <div key={log.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                    <div className="flex-1 cursor-pointer" onClick={() => openDetailDialog(log)}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold">{log.attributes.name}</h3>
+                        <Badge variant="outline" className="text-xs">
+                          {format(new Date(log.attributes.timestamp), 'MMM d, yyyy h:mm a')}
                         </Badge>
-                      )}
+                      </div>
+                      {/* Movement path display */}
+                      <div className="flex items-center gap-2 mt-2 text-sm">
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {fromLocation || 'Unknown'}
+                        </Badge>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <Badge variant="default" className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {toLocation || 'Unknown'}
+                        </Badge>
+                      </div>
+                      {log.attributes.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{log.attributes.notes}</p>}
                     </div>
-                    {log.attributes.notes && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{log.attributes.notes}</p>}
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openDetailDialog(log)}><Eye className="h-4 w-4" /></Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild><Button variant="outline" size="sm"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader><AlertDialogTitle>Delete Movement Log</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this movement log? This will not undo the asset location change.</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(log.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openDetailDialog(log)}><Eye className="h-4 w-4" /></Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild><Button variant="outline" size="sm"><Archive className="h-4 w-4" /></Button></AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader><AlertDialogTitle>Archive Log</AlertDialogTitle><AlertDialogDescription>Are you sure you want to archive this log? It will be hidden from lists but can be restored later.</AlertDialogDescription></AlertDialogHeader>
-                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(log.id)}>Archive</AlertDialogAction></AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -469,7 +396,7 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>{selectedLog?.attributes.name}</DialogTitle>
-            <DialogDescription>{isEditing ? 'Edit log details' : 'View log information'}</DialogDescription>
+            <DialogDescription>{isEditing ? 'Edit movement details' : 'View movement information'}</DialogDescription>
           </DialogHeader>
 
           {selectedLog && (
@@ -493,15 +420,29 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                 ) : (
                   <div className="space-y-4">
                     <div><Label className="text-muted-foreground">Date & Time</Label><p className="text-lg">{format(new Date(selectedLog.attributes.timestamp), 'MMM d, yyyy h:mm a')}</p></div>
-                    {selectedLog.attributes.to_location_id && (
-                      <div>
-                        <Label className="text-muted-foreground">Location</Label>
-                        <p className="text-lg flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          {locations.find(loc => Number(loc.id) === selectedLog.attributes.to_location_id)?.name || 'Unknown'}
-                        </p>
+
+                    {/* Movement Path */}
+                    <div className="p-4 bg-accent/50 rounded-lg">
+                      <Label className="text-muted-foreground mb-2 block">Movement Path</Label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 text-center p-3 bg-background rounded border">
+                          <p className="text-xs text-muted-foreground mb-1">From</p>
+                          <p className="font-medium flex items-center justify-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            {getLocationName(selectedLog.attributes.from_location_id) || 'Unknown'}
+                          </p>
+                        </div>
+                        <ArrowRight className="h-6 w-6 text-primary flex-shrink-0" />
+                        <div className="flex-1 text-center p-3 bg-primary/10 rounded border border-primary/20">
+                          <p className="text-xs text-muted-foreground mb-1">To</p>
+                          <p className="font-medium flex items-center justify-center gap-1">
+                            <MapPin className="h-4 w-4" />
+                            {getLocationName(selectedLog.attributes.to_location_id) || 'Unknown'}
+                          </p>
+                        </div>
                       </div>
-                    )}
+                    </div>
+
                     {selectedLog.attributes.notes && <div><Label className="text-muted-foreground">Notes</Label><p className="text-sm mt-1">{selectedLog.attributes.notes}</p></div>}
 
                     {/* Associated Assets */}
@@ -509,7 +450,7 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                       <div className="pt-4 border-t">
                         <Label className="text-muted-foreground flex items-center gap-1">
                           <Package className="h-3.5 w-3.5" />
-                          Associated Assets ({(selectedLog.attributes as any).asset_count || (selectedLog.attributes as any).asset_details?.length || 0})
+                          Moved Assets ({(selectedLog.attributes as any).asset_count || (selectedLog.attributes as any).asset_details?.length || 0})
                         </Label>
                         <div className="space-y-2 mt-2">
                           {((selectedLog.attributes as any).asset_details || []).map((asset: any) => (
@@ -538,10 +479,10 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
                     </div>
                     <div className="flex justify-between pt-4">
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="outline"><Archive className="h-4 w-4 mr-2" />Archive</Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</Button></AlertDialogTrigger>
                         <AlertDialogContent>
-                          <AlertDialogHeader><AlertDialogTitle>Archive Log</AlertDialogTitle><AlertDialogDescription>Are you sure you want to archive this log? It will be hidden from lists but can be restored later.</AlertDialogDescription></AlertDialogHeader>
-                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(selectedLog.id)}>Archive</AlertDialogAction></AlertDialogFooter>
+                          <AlertDialogHeader><AlertDialogTitle>Delete Movement Log</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this movement log? This will not undo the asset location change.</AlertDialogDescription></AlertDialogHeader>
+                          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(selectedLog.id)}>Delete</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                       <Button onClick={() => setIsEditing(true)}><Pencil className="h-4 w-4 mr-2" />Edit</Button>
@@ -560,3 +501,5 @@ export const GenericLogPage: React.FC<GenericLogPageProps> = ({
     </div>
   );
 };
+
+export default Movement;

@@ -14,10 +14,11 @@ import {
   Hammer,
   Calendar,
   Plus,
-  Wrench,
   CheckSquare,
   FolderKanban,
   MessageSquare,
+  MoveRight,
+  Building2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -38,13 +39,14 @@ const assetItems = [
   { title: 'Animal', url: '/records/assets/animals', icon: Users },
   { title: 'Compost', url: '/records/assets/compost', icon: Recycle },
   { title: 'Equipment', url: '/records/assets/equipment', icon: Tractor },
+  { title: 'Infrastructure', url: '/records/assets/infrastructure', icon: Building2 },
 ];
 
 const logItems = [
   { title: 'Harvest', url: '/records/logs/harvest', icon: Package },
   { title: 'Activity', url: '/records/logs/activity', icon: Hammer },
   { title: 'Input', url: '/records/logs/input', icon: Plus },
-  { title: 'Maintenance', url: '/records/logs/maintenance', icon: Wrench },
+  { title: 'Movement', url: '/records/logs/movement', icon: MoveRight },
   { title: 'Observation', url: '/records/logs/observation', icon: Calendar },
 ];
 

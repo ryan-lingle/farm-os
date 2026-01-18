@@ -43,6 +43,8 @@ class Log < ApplicationRecord
   scope :pending, -> { where(status: "pending") }
   scope :done, -> { where(status: "done") }
   scope :recent, -> { order(timestamp: :desc) }
+  scope :active, -> { where(archived_at: nil) }
+  scope :archived, -> { where.not(archived_at: nil) }
 
   # Callbacks
   before_validation :set_defaults
@@ -61,6 +63,23 @@ class Log < ApplicationRecord
 
   def done?
     status == "done"
+  end
+
+  # Archive methods
+  def archive!
+    update!(archived_at: Time.current)
+  end
+
+  def unarchive!
+    update!(archived_at: nil)
+  end
+
+  def active?
+    archived_at.nil?
+  end
+
+  def archived?
+    archived_at.present?
   end
 
   def movement_log?

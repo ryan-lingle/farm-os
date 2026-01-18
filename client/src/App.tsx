@@ -17,11 +17,12 @@ import Animals from "./pages/records/assets/Animals";
 import Equipment from "./pages/records/assets/Equipment";
 import Plants from "./pages/records/assets/Plants";
 import Compost from "./pages/records/assets/Compost";
+import Infrastructure from "./pages/records/assets/Infrastructure";
 import Harvest from "./pages/records/logs/Harvest";
 import Input from "./pages/records/logs/Input";
 import Activity from "./pages/records/logs/Activity";
 import Observation from "./pages/records/logs/Observation";
-import Maintenance from "./pages/records/logs/Maintenance";
+import Movement from "./pages/records/logs/Movement";
 import Tasks from "./pages/tasks/Tasks";
 import TaskPage from "./pages/tasks/TaskPage";
 import Plans from "./pages/tasks/Plans";
@@ -61,12 +62,13 @@ const App = () => (
                   <Route path="/records/assets/equipment" element={<Equipment />} />
                   <Route path="/records/assets/plants" element={<Plants />} />
                   <Route path="/records/assets/compost" element={<Compost />} />
+                  <Route path="/records/assets/infrastructure" element={<Infrastructure />} />
                   <Route path="/records/logs" element={<Logs />} />
                   <Route path="/records/logs/harvest" element={<Harvest />} />
                   <Route path="/records/logs/input" element={<Input />} />
                   <Route path="/records/logs/activity" element={<Activity />} />
                   <Route path="/records/logs/observation" element={<Observation />} />
-                  <Route path="/records/logs/maintenance" element={<Maintenance />} />
+                  <Route path="/records/logs/movement" element={<Movement />} />
                   <Route path="/tasks" element={<Tasks />} />
                   <Route path="/tasks/:id" element={<TaskPage />} />
                   <Route path="/tasks/plans" element={<Plans />} />

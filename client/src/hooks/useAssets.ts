@@ -42,10 +42,11 @@ export function useCreateAsset(assetType: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Partial<Asset['attributes']>) => 
+    mutationFn: (data: Partial<Asset['attributes']>) =>
       assetsApi.create(assetType, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets', assetType] });
+      queryClient.invalidateQueries({ queryKey: ['locations'] }); // Refresh location asset counts
       toast.success(`${assetType.charAt(0).toUpperCase() + assetType.slice(1)} created successfully`);
     },
     onError: (error: any) => {
@@ -63,6 +64,7 @@ export function useUpdateAsset(assetType: string) {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['assets', assetType] });
       queryClient.invalidateQueries({ queryKey: ['assets', assetType, variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['locations'] }); // Refresh location asset counts
       toast.success(`${assetType.charAt(0).toUpperCase() + assetType.slice(1)} updated successfully`);
     },
     onError: (error: any) => {
@@ -78,6 +80,7 @@ export function useDeleteAsset(assetType: string) {
     mutationFn: (id: string) => assetsApi.delete(assetType, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets', assetType] });
+      queryClient.invalidateQueries({ queryKey: ['locations'] }); // Refresh location asset counts
       toast.success(`${assetType.charAt(0).toUpperCase() + assetType.slice(1)} deleted successfully`);
     },
     onError: (error: any) => {

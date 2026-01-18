@@ -31,6 +31,7 @@ const PopupContent: React.FC<{
   
   return (
     <LocationAssetsPopup
+      locationId={locationId}
       locationName={locationName}
       assets={assets}
       isLoading={isLoading}
@@ -46,7 +47,6 @@ const MapInterface = () => {
   const popup = useRef<mapboxgl.Popup | null>(null);
   const popupRoot = useRef<ReactDOM.Root | null>(null);
   const queryClient = useRef(new QueryClient());
-  const locationMarkers = useRef<mapboxgl.Marker[]>([]);
   const drawModeRef = useRef<'polygon' | 'select'>('select'); // Ref for use in event handlers
   const isInitialStyleRef = useRef(true); // Track initial style load
   const hasInitializedViewRef = useRef(false); // Track if we've centered on root location
@@ -388,11 +388,16 @@ const MapInterface = () => {
     }
   }, [locations, isLoading]);
 
-  // Add location markers with asset counts
+  // Add location markers with clustering (Airbnb-style)
   useEffect(() => {
     if (!map.current || isLoading || locations.length === 0) return;
 
     const currentMap = map.current;
+    const sourceId = 'location-markers';
+    const clusterLayerId = 'location-clusters';
+    const clusterCountLayerId = 'location-cluster-count';
+    const unclusteredLayerId = 'location-unclustered';
+    const unclusteredCountLayerId = 'location-unclustered-count';
 
     // Function to show popup with assets
     const showLocationPopup = (location: Location, coordinates: [number, number]) => {
@@ -403,13 +408,13 @@ const MapInterface = () => {
           closeOnClick: true,
           maxWidth: '400px',
           className: 'location-assets-popup',
-          offset: 25, // Offset from marker
+          offset: 25,
         });
       }
 
       // Create container for React content
       const popupNode = document.createElement('div');
-      
+
       // Clean up previous root if it exists
       if (popupRoot.current) {
         popupRoot.current.unmount();
@@ -419,8 +424,8 @@ const MapInterface = () => {
       popupRoot.current = ReactDOM.createRoot(popupNode);
       popupRoot.current.render(
         <QueryClientProvider client={queryClient.current}>
-          <PopupContent 
-            locationId={location.id} 
+          <PopupContent
+            locationId={location.id}
             locationName={location.name}
             locations={locations}
             onAssetClick={handleAssetClick}
@@ -435,69 +440,228 @@ const MapInterface = () => {
         .addTo(currentMap);
     };
 
-    // Clear existing markers
-    locationMarkers.current.forEach(marker => marker.remove());
-    locationMarkers.current = [];
+    // Function to add clustering layers - called when style is loaded
+    const addClusteringLayers = () => {
+      // Safety check - ensure map style is still loaded
+      if (!currentMap.getStyle()) return;
 
-    // Add marker for each location (skip those without geometry)
-    locations.forEach(location => {
-      // Skip locations without geometry
-      if (!location.geometry) return;
+      // Remove existing source and layers if they exist
+      if (currentMap.getLayer(unclusteredCountLayerId)) currentMap.removeLayer(unclusteredCountLayerId);
+      if (currentMap.getLayer(unclusteredLayerId)) currentMap.removeLayer(unclusteredLayerId);
+      if (currentMap.getLayer(clusterCountLayerId)) currentMap.removeLayer(clusterCountLayerId);
+      if (currentMap.getLayer(clusterLayerId)) currentMap.removeLayer(clusterLayerId);
+      if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId);
 
-      // Calculate center point of location
-      let center: [number, number];
+      // Calculate center point for each location and create GeoJSON features
+    const features: GeoJSON.Feature[] = locations
+      .filter(location => location.geometry)
+      .map(location => {
+        let center: [number, number];
 
-      if (location.geometry.type === 'Point') {
-        const coords = location.geometry.coordinates as number[];
-        center = [coords[0], coords[1]];
-      } else if (location.geometry.type === 'Polygon') {
-        const coords = location.geometry.coordinates[0] as number[][];
-        center = coords.reduce((acc, coord) => {
-          acc[0] += coord[0];
-          acc[1] += coord[1];
-          return acc;
-        }, [0, 0]).map(sum => sum / coords.length) as [number, number];
-      } else {
-        return; // Skip unsupported geometry types
-      }
+        if (location.geometry!.type === 'Point') {
+          const coords = location.geometry!.coordinates as number[];
+          center = [coords[0], coords[1]];
+        } else if (location.geometry!.type === 'Polygon') {
+          const coords = location.geometry!.coordinates[0] as number[][];
+          // Calculate centroid - exclude duplicate closing vertex if present
+          const uniqueCoords = coords.slice(0, -1); // Remove last point (closing vertex)
+          const summed = uniqueCoords.reduce((acc, coord) => {
+            acc[0] += coord[0];
+            acc[1] += coord[1];
+            return acc;
+          }, [0, 0]);
+          center = [summed[0] / uniqueCoords.length, summed[1] / uniqueCoords.length];
+        } else {
+          return null;
+        }
 
-      // Create marker element with asset count
-      const assetCount = location.total_asset_count || 0;
-      const markerEl = document.createElement('div');
-      markerEl.className = 'location-asset-marker';
-      markerEl.innerHTML = `
-        <div class="marker-circle">
-          <div class="marker-count">${assetCount}</div>
-          <div class="marker-label">asset${assetCount !== 1 ? 's' : ''}</div>
-        </div>
-      `;
-
-      // Create and add marker
-      const marker = new mapboxgl.Marker({
-        element: markerEl,
-        anchor: 'center',
+        return {
+          type: 'Feature' as const,
+          properties: {
+            id: location.id,
+            name: location.name,
+            assetCount: location.total_asset_count || 0,
+          },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: center,
+          },
+        };
       })
-        .setLngLat(center)
-        .addTo(currentMap);
+      .filter((f): f is GeoJSON.Feature => f !== null);
 
-      // Add click handler to show popup
-      markerEl.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showLocationPopup(location, center);
-      });
-
-      locationMarkers.current.push(marker);
+    // Add GeoJSON source with clustering
+    currentMap.addSource(sourceId, {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features,
+      },
+      cluster: true,
+      clusterMaxZoom: 14, // Stop clustering at this zoom level
+      clusterRadius: 50, // Cluster radius in pixels
+      clusterProperties: {
+        // Sum asset counts for clustered points
+        totalAssets: ['+', ['get', 'assetCount']],
+      },
     });
+
+    // Clustered circles layer
+    currentMap.addLayer({
+      id: clusterLayerId,
+      type: 'circle',
+      source: sourceId,
+      filter: ['has', 'point_count'],
+      paint: {
+        // Size based on point count
+        'circle-radius': [
+          'step',
+          ['get', 'point_count'],
+          20,   // 20px for < 10 points
+          10, 25, // 25px for >= 10 points
+          30, 30, // 30px for >= 30 points
+        ],
+        'circle-color': 'hsl(210, 79%, 48%)',
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#fff',
+      },
+    });
+
+    // Cluster count label layer
+    currentMap.addLayer({
+      id: clusterCountLayerId,
+      type: 'symbol',
+      source: sourceId,
+      filter: ['has', 'point_count'],
+      layout: {
+        'text-field': ['get', 'totalAssets'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+        'text-size': 14,
+        'text-allow-overlap': true,
+      },
+      paint: {
+        'text-color': '#ffffff',
+      },
+    });
+
+    // Unclustered point circles layer
+    currentMap.addLayer({
+      id: unclusteredLayerId,
+      type: 'circle',
+      source: sourceId,
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-radius': 18,
+        'circle-color': 'hsl(210, 79%, 48%)',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#fff',
+      },
+    });
+
+    // Unclustered point count label layer
+    currentMap.addLayer({
+      id: unclusteredCountLayerId,
+      type: 'symbol',
+      source: sourceId,
+      filter: ['!', ['has', 'point_count']],
+      layout: {
+        'text-field': ['get', 'assetCount'],
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+        'text-size': 13,
+        'text-allow-overlap': true,
+      },
+      paint: {
+        'text-color': '#ffffff',
+      },
+    });
+
+      // Click handler for clusters - zoom in
+      const handleClusterClick = (e: mapboxgl.MapMouseEvent) => {
+        const features = currentMap.queryRenderedFeatures(e.point, {
+          layers: [clusterLayerId],
+        });
+        if (!features.length) return;
+
+        const clusterId = features[0].properties?.cluster_id;
+        const source = currentMap.getSource(sourceId) as mapboxgl.GeoJSONSource;
+
+        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err) return;
+
+          currentMap.easeTo({
+            center: (features[0].geometry as GeoJSON.Point).coordinates as [number, number],
+            zoom: zoom ?? 14,
+          });
+        });
+      };
+
+      // Click handler for unclustered points - show popup
+      const handleUnclusteredClick = (e: mapboxgl.MapMouseEvent) => {
+        const features = currentMap.queryRenderedFeatures(e.point, {
+          layers: [unclusteredLayerId],
+        });
+        if (!features.length) return;
+
+        const feature = features[0];
+        const locationId = feature.properties?.id;
+        const location = locations.find(l => l.id === locationId);
+
+        if (location) {
+          const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+          showLocationPopup(location, coords);
+        }
+      };
+
+      // Cursor changes on hover
+      const handleMouseEnter = () => {
+        currentMap.getCanvas().style.cursor = 'pointer';
+      };
+      const handleMouseLeave = () => {
+        currentMap.getCanvas().style.cursor = '';
+      };
+
+      currentMap.on('click', clusterLayerId, handleClusterClick);
+      currentMap.on('click', unclusteredLayerId, handleUnclusteredClick);
+      currentMap.on('mouseenter', clusterLayerId, handleMouseEnter);
+      currentMap.on('mouseleave', clusterLayerId, handleMouseLeave);
+      currentMap.on('mouseenter', unclusteredLayerId, handleMouseEnter);
+      currentMap.on('mouseleave', unclusteredLayerId, handleMouseLeave);
+    }; // End of addClusteringLayers function
+
+    // Wait for style to be loaded before adding sources/layers
+    if (currentMap.isStyleLoaded()) {
+      addClusteringLayers();
+    } else {
+      currentMap.once('load', addClusteringLayers);
+    }
 
     // Cleanup
     return () => {
-      locationMarkers.current.forEach(marker => marker.remove());
-      locationMarkers.current = [];
-      
+      currentMap.off('load', addClusteringLayers);
+      currentMap.off('click', clusterLayerId);
+      currentMap.off('click', unclusteredLayerId);
+      currentMap.off('mouseenter', clusterLayerId);
+      currentMap.off('mouseleave', clusterLayerId);
+      currentMap.off('mouseenter', unclusteredLayerId);
+      currentMap.off('mouseleave', unclusteredLayerId);
+
+      // Only try to remove layers/sources if the map style is still valid
+      try {
+        if (currentMap.getStyle()) {
+          if (currentMap.getLayer(unclusteredCountLayerId)) currentMap.removeLayer(unclusteredCountLayerId);
+          if (currentMap.getLayer(unclusteredLayerId)) currentMap.removeLayer(unclusteredLayerId);
+          if (currentMap.getLayer(clusterCountLayerId)) currentMap.removeLayer(clusterCountLayerId);
+          if (currentMap.getLayer(clusterLayerId)) currentMap.removeLayer(clusterLayerId);
+          if (currentMap.getSource(sourceId)) currentMap.removeSource(sourceId);
+        }
+      } catch {
+        // Map may have been destroyed, ignore
+      }
+
       if (popup.current) {
         popup.current.remove();
       }
-      
+
       if (popupRoot.current) {
         popupRoot.current.unmount();
         popupRoot.current = null;
@@ -636,7 +800,7 @@ const MapInterface = () => {
       />
 
       {/* Map Container */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-hidden">
         <MapToolbar
           drawMode={drawMode}
           onDrawModeChange={setDrawMode}

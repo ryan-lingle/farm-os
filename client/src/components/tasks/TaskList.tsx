@@ -62,6 +62,7 @@ interface DroppableGroupProps {
   titleColor?: string;
   icon?: React.ReactNode;
   tasks: Task[];
+  allTasks?: Task[];
   plansMap?: Map<number, string>;
   onTaskClick?: (task: Task) => void;
   onTaskEdit?: (task: Task) => void;
@@ -76,6 +77,7 @@ function DroppableGroup({
   titleColor = 'text-foreground',
   icon,
   tasks,
+  allTasks,
   plansMap,
   onTaskClick,
   onTaskEdit,
@@ -147,6 +149,7 @@ function DroppableGroup({
                 planName={plansMap?.get(task.planId)}
                 onClick={onTaskClick}
                 onEdit={onTaskEdit}
+                allTasks={allTasks}
               />
             ))}
             {tasks.length === 0 && (
@@ -165,6 +168,7 @@ function DroppableGroup({
 interface CycleGroupProps {
   cycle: Cycle;
   tasks: Task[];
+  allTasks?: Task[];
   plansMap?: Map<number, string>;
   onTaskClick?: (task: Task) => void;
   onTaskEdit?: (task: Task) => void;
@@ -174,6 +178,7 @@ interface CycleGroupProps {
 function CycleGroup({
   cycle,
   tasks,
+  allTasks,
   plansMap,
   onTaskClick,
   onTaskEdit,
@@ -240,6 +245,7 @@ function CycleGroup({
                 planName={plansMap?.get(task.planId)}
                 onClick={onTaskClick}
                 onEdit={onTaskEdit}
+                allTasks={allTasks}
               />
             ))}
           </SortableContext>
@@ -282,7 +288,7 @@ export function TaskList({
     [cycles]
   );
 
-  // Organize tasks into groups
+  // Organize tasks into groups (only root tasks - those without parents or whose parent isn't in this list)
   const organizedTasks = useMemo(() => {
     const inProgress: Task[] = [];
     const scheduledByCycle: Map<number, Task[]> = new Map();
@@ -290,7 +296,15 @@ export function TaskList({
     const done: Task[] = [];
     const cancelled: Task[] = [];
 
+    // Create a set of task IDs for quick parent lookup
+    const taskIdSet = new Set(tasks.map((t) => parseInt(t.id, 10)));
+
     for (const task of tasks) {
+      // Skip tasks whose parent is in this list (they'll be rendered as children)
+      if (task.parentId && taskIdSet.has(task.parentId)) {
+        continue;
+      }
+
       if (task.state === 'done') {
         done.push(task);
       } else if (task.state === 'cancelled') {
@@ -430,6 +444,7 @@ export function TaskList({
             title="In Progress"
             titleColor={stateColors.in_progress}
             tasks={inProgress}
+            allTasks={tasks}
             plansMap={plansMap}
             onTaskClick={onTaskClick}
             onTaskEdit={onTaskEdit}
@@ -467,6 +482,7 @@ export function TaskList({
                   key={cycleId}
                   cycle={displayCycle}
                   tasks={cycleTasks}
+                  allTasks={tasks}
                   plansMap={plansMap}
                   onTaskClick={onTaskClick}
                   onTaskEdit={onTaskEdit}
@@ -483,6 +499,7 @@ export function TaskList({
           title="Backlog"
           titleColor={stateColors.backlog}
           tasks={backlog}
+          allTasks={tasks}
           plansMap={plansMap}
           onTaskClick={onTaskClick}
           onTaskEdit={onTaskEdit}
@@ -498,6 +515,7 @@ export function TaskList({
             title="Done"
             titleColor={stateColors.done}
             tasks={done}
+            allTasks={tasks}
             plansMap={plansMap}
             onTaskClick={onTaskClick}
             onTaskEdit={onTaskEdit}
@@ -513,6 +531,7 @@ export function TaskList({
             title="Cancelled"
             titleColor={stateColors.cancelled}
             tasks={cancelled}
+            allTasks={tasks}
             plansMap={plansMap}
             onTaskClick={onTaskClick}
             onTaskEdit={onTaskEdit}

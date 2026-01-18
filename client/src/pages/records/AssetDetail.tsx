@@ -1,6 +1,24 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, MapPin, FileText, Calendar, ExternalLink } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Pencil,
+  Archive,
+  MapPin,
+  FileText,
+  Calendar,
+  ExternalLink,
+  ChevronRight,
+  FolderOpen,
+  Package,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Users,
+  Sprout,
+  Tractor,
+  Building2,
+  Recycle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,14 +27,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useAssets, useUpdateAsset, useDeleteAsset } from '@/hooks/useAssets';
+import { useAsset, useUpdateAsset, useDeleteAsset } from '@/hooks/useAssets';
 import { useLocations } from '@/hooks/useLocations';
 import { Asset } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackReferences } from '@/components/BackReferences';
+import { AssetLogsSection } from '@/components/AssetLogsSection';
 import { toast } from 'sonner';
 import { showError } from '@/components/ErrorToast';
 import { format } from 'date-fns';
+
+// Asset type icons
+const assetTypeIcons: Record<string, React.ElementType> = {
+  animal: Users,
+  plant: Sprout,
+  equipment: Tractor,
+  structure: Building2,
+  compost: Recycle,
+  material: Package,
+};
 
 export const AssetDetail: React.FC = () => {
   const { assetType, id } = useParams<{ assetType: string; id: string }>();
@@ -37,13 +66,13 @@ export const AssetDetail: React.FC = () => {
     );
   }
 
-  // Fetch all assets to find the specific one
-  const { data, isLoading } = useAssets(assetType, 1, 100);
+  // Use single asset fetch hook
+  const { data, isLoading } = useAsset(assetType, id);
   const { locations } = useLocations();
   const updateAsset = useUpdateAsset(assetType);
   const deleteAsset = useDeleteAsset(assetType);
 
-  const asset = data?.data?.find(a => String(a.id) === String(id));
+  const asset = data?.data;
 
   const [editFormData, setEditFormData] = useState({
     name: asset?.attributes.name || '',
@@ -90,10 +119,10 @@ export const AssetDetail: React.FC = () => {
     if (!asset) return;
     try {
       await deleteAsset.mutateAsync(asset.id);
-      toast.success('Asset deleted successfully');
+      toast.success('Asset archived successfully');
       navigate(`/records/assets/${assetType}`);
     } catch (error) {
-      showError(error, 'Failed to delete asset');
+      showError(error, 'Failed to archive asset');
     }
   };
 
@@ -109,21 +138,45 @@ export const AssetDetail: React.FC = () => {
     );
   }
 
+  const attrs = asset.attributes as any;
   const assetTypeTitle = assetType.charAt(0).toUpperCase() + assetType.slice(1);
   const currentLocation = locations.find(loc => Number(loc.id) === asset.attributes.current_location_id);
+  const parentSummary = attrs.parent_summary;
+  const childrenSummaries = attrs.children_summaries || [];
+  const recentMovements = attrs.recent_movements || [];
+  const movementCount = attrs.movement_count || 0;
+  const AssetIcon = assetTypeIcons[assetType] || Package;
 
   return (
     <div className="p-6 space-y-6">
-      {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate(`/records/assets/${assetType}`)}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to {assetTypeTitle}s
-      </Button>
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center gap-2 text-sm">
+        <Button variant="ghost" size="sm" onClick={() => navigate(`/records/assets/${assetType}`)}>
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          {assetTypeTitle}s
+        </Button>
+        {parentSummary && (
+          <>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <Link
+              to={`/records/assets/${parentSummary.asset_type}/${parentSummary.id}`}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {parentSummary.name}
+            </Link>
+          </>
+        )}
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium">{asset.attributes.name}</span>
+      </div>
 
       {/* Header with Title and Actions */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{asset.attributes.name}</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <AssetIcon className="h-8 w-8 text-primary" />
+            {asset.attributes.name}
+          </h1>
           <p className="text-muted-foreground mt-1">{assetTypeTitle} • ID: {asset.id}</p>
         </div>
         <div className="flex gap-2">
@@ -136,22 +189,22 @@ export const AssetDetail: React.FC = () => {
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+              <Button variant="outline">
+                <Archive className="h-4 w-4 mr-2" />
+                Archive
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Asset</AlertDialogTitle>
+                <AlertDialogTitle>Archive Asset</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{asset.attributes.name}"? This action cannot be undone.
+                  Are you sure you want to archive "{asset.attributes.name}"? The asset will be hidden from lists but can be restored later.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Delete
+                <AlertDialogAction onClick={handleDelete}>
+                  Archive
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -159,20 +212,33 @@ export const AssetDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Status and Metadata */}
+      {/* Status and Metadata Badges */}
       <div className="flex flex-wrap gap-3">
         <Badge variant={asset.attributes.status === 'active' ? 'default' : 'secondary'}>
           {asset.attributes.status === 'archived' ? 'Archived' : asset.attributes.status}
         </Badge>
         {currentLocation && (
-          <Badge variant="outline" className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            {currentLocation.name}
+          <Link to={`/locations/${currentLocation.id}`}>
+            <Badge variant="outline" className="flex items-center gap-1 cursor-pointer hover:bg-accent transition-colors">
+              <MapPin className="h-3 w-3" />
+              {currentLocation.name}
+              <ExternalLink className="h-3 w-3 ml-1 opacity-50" />
+            </Badge>
+          </Link>
+        )}
+        {asset.attributes.quantity && (
+          <Badge variant="secondary">
+            Qty: {asset.attributes.quantity}
+          </Badge>
+        )}
+        {(attrs.child_count ?? 0) > 0 && (
+          <Badge variant="outline">
+            {attrs.child_count} sub-asset{attrs.child_count !== 1 ? 's' : ''}
           </Badge>
         )}
       </div>
 
-      {/* Main Content */}
+      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Details Card */}
         <Card className="lg:col-span-2">
@@ -286,7 +352,12 @@ export const AssetDetail: React.FC = () => {
                   </Label>
                   {currentLocation ? (
                     <p className="text-sm mt-1">
-                      <Badge variant="outline">{currentLocation.name}</Badge>
+                      <Link to={`/locations/${currentLocation.id}`} className="hover:underline">
+                        <Badge variant="outline" className="cursor-pointer hover:bg-accent">
+                          {currentLocation.name}
+                          <ExternalLink className="h-3 w-3 ml-1 inline" />
+                        </Badge>
+                      </Link>
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground mt-1">Not assigned to a location</p>
@@ -307,39 +378,56 @@ export const AssetDetail: React.FC = () => {
         {/* Metadata Sidebar */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Metadata</CardTitle>
+            <CardTitle className="text-base">Statistics</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Asset Type</p>
-              <p className="font-medium mt-1">{assetTypeTitle}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Asset Type</span>
+              <span className="font-medium">{assetTypeTitle}</span>
             </div>
-            <div>
-              <p className="text-muted-foreground">Created</p>
-              <p className="font-medium mt-1">{new Date(asset.attributes.created).toLocaleDateString()}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Package className="h-4 w-4" /> Sub-Assets
+              </span>
+              <span className="font-bold">{attrs.child_count || 0}</span>
             </div>
-            {asset.attributes.updated && (
-              <div>
-                <p className="text-muted-foreground">Last Updated</p>
-                <p className="font-medium mt-1">{new Date(asset.attributes.updated).toLocaleDateString()}</p>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <FileText className="h-4 w-4" /> Log Entries
+              </span>
+              <span className="font-bold">{attrs.log_count || 0}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <ArrowUpRight className="h-4 w-4" /> Movements
+              </span>
+              <span className="font-bold">{movementCount}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Created</span>
+              <span className="font-medium">{new Date(asset.attributes.created_at).toLocaleDateString()}</span>
+            </div>
+            {asset.attributes.updated_at && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Updated</span>
+                <span className="font-medium">{new Date(asset.attributes.updated_at).toLocaleDateString()}</span>
               </div>
             )}
 
-            {/* Back References - tasks and plans that reference this asset */}
-            {((asset.attributes as any).referencing_task_count > 0 ||
-              (asset.attributes as any).referencing_plan_count > 0) && (
+            {/* Back References */}
+            {((attrs.referencing_task_count > 0 || attrs.referencing_plan_count > 0)) && (
               <div className="pt-4 border-t">
                 <BackReferences
                   entityType="asset"
-                  referencingTaskCount={(asset.attributes as any).referencing_task_count}
-                  referencingPlanCount={(asset.attributes as any).referencing_plan_count}
-                  referencingTasks={((asset.attributes as any).referencing_tasks || []).map((t: any) => ({
+                  referencingTaskCount={attrs.referencing_task_count}
+                  referencingPlanCount={attrs.referencing_plan_count}
+                  referencingTasks={(attrs.referencing_tasks || []).map((t: any) => ({
                     id: t.id,
                     name: t.title,
                     type: 'task' as const,
                     state: t.state,
                   }))}
-                  referencingPlans={((asset.attributes as any).referencing_plans || []).map((p: any) => ({
+                  referencingPlans={(attrs.referencing_plans || []).map((p: any) => ({
                     id: p.id,
                     name: p.name,
                     type: 'plan' as const,
@@ -352,61 +440,166 @@ export const AssetDetail: React.FC = () => {
         </Card>
       </div>
 
-      {/* Activity Log Section */}
-      {(asset.attributes.log_count ?? 0) > 0 && (
+      {/* Parent Asset Section */}
+      {parentSummary && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Activity Log
+              <FolderOpen className="h-5 w-5" />
+              Parent Asset
+            </CardTitle>
+            <CardDescription>This asset belongs to a parent asset</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              to={`/records/assets/${parentSummary.asset_type}/${parentSummary.id}`}
+              className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const ParentIcon = assetTypeIcons[parentSummary.asset_type] || Package;
+                  return <ParentIcon className="h-4 w-4" />;
+                })()}
+                <span className="font-medium">{parentSummary.name}</span>
+                <Badge variant="outline" className="text-xs capitalize">
+                  {parentSummary.asset_type}
+                </Badge>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Child Assets Section */}
+      {childrenSummaries.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Sub-Assets
             </CardTitle>
             <CardDescription>
-              {asset.attributes.log_count} log {asset.attributes.log_count === 1 ? 'entry' : 'entries'} associated with this asset
+              {childrenSummaries.length} asset{childrenSummaries.length !== 1 ? 's' : ''} under this {assetType}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {(asset.attributes.recent_logs || []).map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">{log.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {log.log_type}
-                      </Badge>
-                      {log.status && (
-                        <Badge variant={log.status === 'done' ? 'default' : 'secondary'} className="text-xs">
-                          {log.status}
+            <div className="grid gap-2">
+              {childrenSummaries.map((child: any) => {
+                const ChildIcon = assetTypeIcons[child.asset_type] || Package;
+                return (
+                  <Link
+                    key={child.id}
+                    to={`/records/assets/${child.asset_type}/${child.id}`}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ChildIcon className="h-4 w-4" />
+                      <span className="font-medium">{child.name}</span>
+                      {child.quantity && (
+                        <Badge variant="outline" className="text-xs">
+                          Qty: {child.quantity}
                         </Badge>
                       )}
+                      <Badge
+                        variant={child.status === 'active' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {child.status}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(log.timestamp), 'MMM d, yyyy h:mm a')}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate(`/records/logs/${log.log_type}`)}
-                    className="flex items-center gap-1"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              {(asset.attributes.log_count ?? 0) > 10 && (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Link>
+                );
+              })}
+              {(attrs.child_count || 0) > 20 && (
                 <p className="text-xs text-muted-foreground text-center pt-2">
-                  Showing 10 most recent of {asset.attributes.log_count} logs
+                  Showing 20 of {attrs.child_count} sub-assets
                 </p>
               )}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Movement History Section */}
+      {recentMovements.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ArrowUpRight className="h-5 w-5" />
+              Movement History
+            </CardTitle>
+            <CardDescription>
+              Recent location changes for this asset
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentMovements.map((movement: any) => {
+                const fromLocation = locations.find(loc => Number(loc.id) === movement.from_location_id);
+                const toLocation = locations.find(loc => Number(loc.id) === movement.to_location_id);
+                return (
+                  <div
+                    key={movement.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{movement.name}</span>
+                        <Badge variant={movement.status === 'done' ? 'default' : 'secondary'} className="text-xs">
+                          {movement.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                        {fromLocation && (
+                          <>
+                            <Link
+                              to={`/locations/${fromLocation.id}`}
+                              className="hover:underline flex items-center gap-1"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ArrowDownLeft className="h-3 w-3 text-orange-600" />
+                              {fromLocation.name}
+                            </Link>
+                            <span>→</span>
+                          </>
+                        )}
+                        {toLocation && (
+                          <Link
+                            to={`/locations/${toLocation.id}`}
+                            className="hover:underline flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ArrowUpRight className="h-3 w-3 text-green-600" />
+                            {toLocation.name}
+                          </Link>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        <Calendar className="h-3 w-3" />
+                        {movement.timestamp ? format(new Date(movement.timestamp), 'MMM d, yyyy h:mm a') : 'Unknown date'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {movementCount > 10 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  Showing 10 most recent of {movementCount} movements
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Logs Section */}
+      <AssetLogsSection
+        logs={attrs.recent_logs || []}
+        logCount={attrs.log_count ?? 0}
+        onNavigateToLog={(logType) => navigate(`/records/logs/${logType}`)}
+      />
     </div>
   );
 };

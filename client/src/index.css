@@ -133,6 +133,7 @@ All colors MUST be HSL.
   font-family: inherit;
   min-width: 280px;
   max-width: 400px;
+  overflow: hidden;
   animation: popupFadeIn 0.2s ease-out;
 }
 
@@ -169,8 +170,8 @@ All colors MUST be HSL.
 /* Location Asset Marker Styling */
 .location-asset-marker {
   /* Critical: Don't use flexbox on the marker wrapper */
-  width: 60px;
-  height: 60px;
+  width: 40px;
+  height: 40px;
   position: relative;
   pointer-events: auto;
 }
@@ -181,11 +182,11 @@ All colors MUST be HSL.
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  border: 3px solid white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition: all 0.2s ease;
   animation: markerAppear 0.3s ease-out;
   position: absolute;
@@ -196,36 +197,30 @@ All colors MUST be HSL.
 
 .location-asset-marker:hover .marker-circle {
   @apply shadow-2xl;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-  border-width: 4px;
-  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-width: 3px;
+  transform: translate(-50%, -50%) scale(1.15);
 }
 
 .location-asset-marker .marker-count {
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
-  margin-bottom: 2px;
 }
 
 .location-asset-marker .marker-label {
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  line-height: 1;
-  opacity: 0.95;
+  display: none;
 }
 
 /* Marker appear animation */
 @keyframes markerAppear {
   from {
     opacity: 0;
-    transform: scale(0.5);
+    transform: translate(-50%, -50%) scale(0.5);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 

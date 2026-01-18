@@ -22,13 +22,18 @@ export interface Conversation {
   status: ConversationStatus;
   taskId?: number | null;
   planId?: number | null;
+  assetId?: number | null;
+  assetType?: string | null;
+  locationId?: number | null;
+  logId?: number | null;
+  logType?: string | null;
   messages: ChatMessage[];
   createdAt: string;
   updatedAt: string;
   // Computed fields
   defaultTitle?: string;
   hasContext?: boolean;
-  contextType?: 'task' | 'plan' | null;
+  contextType?: 'task' | 'plan' | 'asset' | 'location' | 'log' | null;
   isActive?: boolean;
   isArchived?: boolean;
 }
@@ -43,6 +48,11 @@ function apiConversationToConversation(apiConversation: ApiConversation): Conver
     status: attrs.status,
     taskId: attrs.task_id,
     planId: attrs.plan_id,
+    assetId: attrs.asset_id,
+    assetType: attrs.asset_type,
+    locationId: attrs.location_id,
+    logId: attrs.log_id,
+    logType: attrs.log_type,
     messages: attrs.messages || [],
     createdAt: attrs.created_at,
     updatedAt: attrs.updated_at,
@@ -144,12 +154,22 @@ export function useCreateConversation() {
       externalId?: string;
       taskId?: number;
       planId?: number;
+      assetId?: number;
+      assetType?: string;
+      locationId?: number;
+      logId?: number;
+      logType?: string;
     }) => {
       const response = await conversationsApi.create({
         title: data.title,
         external_id: data.externalId,
         task_id: data.taskId,
         plan_id: data.planId,
+        asset_id: data.assetId,
+        asset_type: data.assetType,
+        location_id: data.locationId,
+        log_id: data.logId,
+        log_type: data.logType,
       });
       return apiConversationToConversation(response.data);
     },
@@ -179,6 +199,11 @@ export function useUpdateConversation() {
         status: ConversationStatus;
         taskId: number | null;
         planId: number | null;
+        assetId: number | null;
+        assetType: string | null;
+        locationId: number | null;
+        logId: number | null;
+        logType: string | null;
       }>;
     }) => {
       const apiUpdates: any = {};
@@ -187,6 +212,11 @@ export function useUpdateConversation() {
       if (updates.status !== undefined) apiUpdates.status = updates.status;
       if (updates.taskId !== undefined) apiUpdates.task_id = updates.taskId;
       if (updates.planId !== undefined) apiUpdates.plan_id = updates.planId;
+      if (updates.assetId !== undefined) apiUpdates.asset_id = updates.assetId;
+      if (updates.assetType !== undefined) apiUpdates.asset_type = updates.assetType;
+      if (updates.locationId !== undefined) apiUpdates.location_id = updates.locationId;
+      if (updates.logId !== undefined) apiUpdates.log_id = updates.logId;
+      if (updates.logType !== undefined) apiUpdates.log_type = updates.logType;
 
       const response = await conversationsApi.update(id, apiUpdates);
       return apiConversationToConversation(response.data);

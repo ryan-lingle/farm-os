@@ -5,7 +5,8 @@
  */
 
 import { useState, useEffect, useRef, useCallback, DragEvent } from 'react';
-import { Loader2, X, Trash2, Upload } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, X, Upload, Expand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessage } from './ChatMessage';
@@ -29,6 +30,7 @@ export function ChatPanel({
   onClose,
   onClear,
 }: ChatPanelProps) {
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
@@ -107,10 +109,13 @@ export function ChatPanel({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={onClear}
-            title="Clear chat"
+            onClick={() => {
+              onClose();
+              navigate('/chat');
+            }}
+            title="Open full screen"
           >
-            <Trash2 className="h-4 w-4" />
+            <Expand className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"

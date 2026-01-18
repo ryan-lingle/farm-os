@@ -25,10 +25,18 @@ app.add_middleware(
 )
 
 
+class ChatContext(BaseModel):
+    """Context about a resource being discussed."""
+    type: str  # 'task', 'plan', 'asset', 'location', 'log'
+    id: int
+    data: str  # Markdown-formatted context about the resource
+
+
 class ChatRequest(BaseModel):
     """Request model for chat endpoint."""
     message: str
     history: Optional[list[dict]] = None
+    context: Optional[ChatContext] = None
 
 
 class ToolCall(BaseModel):
@@ -68,7 +76,16 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     and returns the AI's response along with any tool calls made.
     """
     try:
-        result = await chat(request.message, history=request.history)
+        # Convert context to dict if provided
+        context_dict = None
+        if request.context:
+            context_dict = {
+                "type": request.context.type,
+                "id": request.context.id,
+                "data": request.context.data
+            }
+
+        result = await chat(request.message, history=request.history, context=context_dict)
         return ChatResponse(
             message=result["message"],
             tool_calls=result.get("tool_calls", [])

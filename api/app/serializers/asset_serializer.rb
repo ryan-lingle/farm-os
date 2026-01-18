@@ -50,6 +50,47 @@ class AssetSerializer
     end
   end
 
+  # Movement history for this asset
+  attribute :movement_count do |object|
+    object.logs.where(log_type: "movement").count
+  end
+
+  attribute :recent_movements do |object|
+    object.logs.where(log_type: "movement").order(timestamp: :desc).limit(10).map do |log|
+      {
+        id: log.id,
+        name: log.name,
+        timestamp: log.timestamp,
+        status: log.status,
+        from_location_id: log.from_location_id,
+        to_location_id: log.to_location_id
+      }
+    end
+  end
+
+  # Parent asset summary for display
+  attribute :parent_summary do |object|
+    next nil unless object.parent
+    {
+      id: object.parent.id,
+      name: object.parent.name,
+      asset_type: object.parent.asset_type
+    }
+  end
+
+  # Children summaries for display
+  attribute :children_summaries do |object|
+    object.children.limit(20).map do |child|
+      {
+        id: child.id,
+        name: child.name,
+        asset_type: child.asset_type,
+        status: child.status,
+        quantity: child.quantity
+      }
+    end
+  end
+
   # Back-reference counts (entities that mention this asset)
   attribute :referencing_task_count do |object|
     object.task_assets.count

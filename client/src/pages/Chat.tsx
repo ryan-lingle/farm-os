@@ -3,9 +3,9 @@
  * ChatGPT-style interface with conversation history sidebar.
  */
 
-import { useState, useEffect, useRef, useCallback, DragEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, DragEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, Upload } from 'lucide-react';
+import { Loader2, Upload, FileText, FolderKanban, MapPin, ClipboardList, Package } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessage } from '@/components/chat/ChatMessage';
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -17,7 +17,41 @@ import {
   useUpdateConversation,
   Conversation,
 } from '@/hooks/useConversations';
+import { useTask, useTasks } from '@/hooks/useTasks';
+import { usePlan } from '@/hooks/usePlans';
+import { useAsset } from '@/hooks/useAssets';
+import { useLocation } from '@/hooks/useLocations';
+import { useLog } from '@/hooks/useLogs';
+import {
+  buildTaskContext,
+  buildPlanContext,
+  buildAssetContext,
+  buildLocationContext,
+  buildLogContext,
+  getTaskSummary,
+  getPlanSummary,
+  getAssetSummary,
+  getLocationSummary,
+  getLogSummary,
+  getTaskExampleQuestions,
+  getPlanExampleQuestions,
+  getAssetExampleQuestions,
+  getLocationExampleQuestions,
+  getLogExampleQuestions,
+} from '@/lib/chat-context';
 import type { ChatImage } from '@/types/chat';
+import type { ChatContext } from '@/lib/chat-api';
+
+// Generate a short title from the first message (ChatGPT-style)
+function generateTitle(message: string): string {
+  // Remove extra whitespace and limit length
+  const cleaned = message.trim().replace(/\s+/g, ' ');
+  if (cleaned.length <= 40) return cleaned;
+  // Cut at word boundary
+  const truncated = cleaned.slice(0, 40);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return lastSpace > 20 ? truncated.slice(0, lastSpace) + '...' : truncated + '...';
+}
 
 export default function Chat() {
   const { id } = useParams<{ id: string }>();
@@ -28,7 +62,68 @@ export default function Chat() {
   const dragCounterRef = useRef(0);
   const [hasLoadedMessages, setHasLoadedMessages] = useState(false);
 
-  // Chat state - pass conversationId for message persistence
+  // Conversation metadata
+  const { data: currentConversation, isLoading: conversationLoading } = useConversation(id);
+
+  // Fetch context resource data based on conversation's context type
+  const taskId = currentConversation?.taskId?.toString();
+  const planId = currentConversation?.planId?.toString();
+  const assetId = currentConversation?.assetId?.toString();
+  const assetType = currentConversation?.assetType || 'animal';
+  const locationId = currentConversation?.locationId?.toString();
+  const logId = currentConversation?.logId?.toString();
+  const logType = currentConversation?.logType || 'activity';
+
+  const { data: contextTask } = useTask(taskId);
+  const { data: contextPlan } = usePlan(planId ? parseInt(planId, 10) : undefined);
+  const { data: contextAsset } = useAsset(assetType, assetId || '');
+  const { data: contextLocation } = useLocation(locationId);
+  const { data: contextLog } = useLog(logType, logId || '');
+
+  // Only fetch plan tasks when we have a planId
+  const planIdNum = planId ? parseInt(planId, 10) : undefined;
+  const { tasks: planTasks } = useTasks(planIdNum ? { plan_id: planIdNum } : { plan_id: -1 });
+
+  // Build chat context from resource data
+  const chatContext = useMemo<ChatContext | undefined>(() => {
+    if (contextTask) {
+      return buildTaskContext(contextTask);
+    }
+    if (contextPlan && planIdNum) {
+      return buildPlanContext(contextPlan, planTasks);
+    }
+    if (contextAsset) {
+      return buildAssetContext(contextAsset);
+    }
+    if (contextLocation) {
+      return buildLocationContext(contextLocation);
+    }
+    if (contextLog) {
+      return buildLogContext(contextLog);
+    }
+    return undefined;
+  }, [contextTask, contextPlan, planTasks, planIdNum, contextAsset, contextLocation, contextLog]);
+
+  // Build summary and example questions based on context type
+  const contextSummary = useMemo<string | undefined>(() => {
+    if (contextTask) return getTaskSummary(contextTask);
+    if (contextPlan) return getPlanSummary(contextPlan, planTasks);
+    if (contextAsset) return getAssetSummary(contextAsset);
+    if (contextLocation) return getLocationSummary(contextLocation);
+    if (contextLog) return getLogSummary(contextLog);
+    return undefined;
+  }, [contextTask, contextPlan, planTasks, contextAsset, contextLocation, contextLog]);
+
+  const exampleQuestions = useMemo<string[]>(() => {
+    if (contextTask) return getTaskExampleQuestions(contextTask);
+    if (contextPlan) return getPlanExampleQuestions(contextPlan, planTasks);
+    if (contextAsset) return getAssetExampleQuestions(contextAsset);
+    if (contextLocation) return getLocationExampleQuestions(contextLocation);
+    if (contextLog) return getLogExampleQuestions(contextLog);
+    return [];
+  }, [contextTask, contextPlan, planTasks, contextAsset, contextLocation, contextLog]);
+
+  // Chat state - pass conversationId and context for message persistence
   const {
     messages,
     isLoading,
@@ -36,10 +131,7 @@ export default function Chat() {
     sendMessage,
     loadMessages,
     clearMessages,
-  } = useChat({ conversationId: id });
-
-  // Conversation metadata
-  const { data: currentConversation, isLoading: conversationLoading } = useConversation(id);
+  } = useChat({ conversationId: id, context: chatContext });
   const createConversation = useCreateConversation();
   const updateConversation = useUpdateConversation();
 
@@ -85,20 +177,20 @@ export default function Chat() {
     // If no conversation selected, create one first
     if (!id) {
       const conv = await createConversation.mutateAsync({
-        title: message.slice(0, 50),
+        title: generateTitle(message),
       });
       navigate(`/chat/${conv.id}`, { replace: true });
     } else if (!currentConversation?.title && messages.length === 0) {
       // Update title with first message if not set
       updateConversation.mutate({
         id,
-        updates: { title: message.slice(0, 50) },
+        updates: { title: generateTitle(message) },
       });
     }
 
-    // Send the message
-    await sendMessage(message, images);
-  }, [id, currentConversation, messages.length, createConversation, navigate, updateConversation, sendMessage]);
+    // Send the message - pass chatContext directly to avoid closure issues
+    await sendMessage(message, images, chatContext);
+  }, [id, currentConversation, messages.length, createConversation, navigate, updateConversation, sendMessage, chatContext]);
 
   // Drag and drop handlers
   const handleDragEnter = useCallback((e: DragEvent) => {
@@ -209,8 +301,65 @@ export default function Chat() {
               </div>
             ) : messages.length === 0 && id && hasLoadedMessages ? (
               // Empty state for selected conversation with no messages
-              <div className="flex flex-col items-center justify-center h-[60vh] text-center text-muted-foreground">
-                <p>Start the conversation</p>
+              <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+                {chatContext && (
+                  <>
+                    {/* Context Header Card */}
+                    <div className="mb-4 p-4 bg-muted rounded-lg text-left max-w-lg w-full">
+                      <div className="flex items-center gap-2 mb-2 text-sm font-medium">
+                        {chatContext.type === 'task' && <FileText className="h-4 w-4" />}
+                        {chatContext.type === 'plan' && <FolderKanban className="h-4 w-4" />}
+                        {chatContext.type === 'asset' && <Package className="h-4 w-4" />}
+                        {chatContext.type === 'location' && <MapPin className="h-4 w-4" />}
+                        {chatContext.type === 'log' && <ClipboardList className="h-4 w-4" />}
+                        <span className="capitalize">Chatting about {chatContext.type}</span>
+                      </div>
+                      <p className="text-sm font-medium">
+                        {chatContext.type === 'task' && contextTask?.title}
+                        {chatContext.type === 'plan' && contextPlan?.name}
+                        {chatContext.type === 'asset' && contextAsset?.attributes.name}
+                        {chatContext.type === 'location' && contextLocation?.name}
+                        {chatContext.type === 'log' && contextLog?.attributes.name}
+                      </p>
+                    </div>
+
+                    {/* Summary */}
+                    {contextSummary && (
+                      <div className="mb-6 text-sm text-muted-foreground max-w-lg text-left px-4">
+                        <p
+                          dangerouslySetInnerHTML={{
+                            __html: contextSummary
+                              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                              .replace(/\*(.*?)\*/g, '<em>$1</em>'),
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Example Questions */}
+                    {exampleQuestions.length > 0 && (
+                      <div className="w-full max-w-lg">
+                        <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">
+                          Try asking
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {exampleQuestions.map((question, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleSend(question)}
+                              className="p-3 bg-muted hover:bg-muted/80 rounded-lg text-left text-sm transition-colors cursor-pointer"
+                            >
+                              "{question}"
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+                {!chatContext && (
+                  <p className="text-muted-foreground">Start the conversation</p>
+                )}
               </div>
             ) : (
               // Messages list

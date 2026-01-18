@@ -6,28 +6,35 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { sendChatMessage } from '@/lib/chat-api';
+import { sendChatMessage, ChatContext } from '@/lib/chat-api';
 import { conversationsApi } from '@/lib/api';
 import type { ChatMessage, ChatImage, ToolCall } from '@/types/chat';
 
 interface UseChatOptions {
   conversationId?: string;
   onMessagesChange?: (messages: ChatMessage[]) => void;
+  maxHistoryMessages?: number; // Limit history sent to API to avoid context overflow
+  context?: ChatContext; // Optional resource context for "Chat About" feature
 }
+
+// Default max history to prevent context length exceeded errors
+const DEFAULT_MAX_HISTORY = 20;
 
 interface UseChatReturn {
   messages: ChatMessage[];
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
-  sendMessage: (message: string, images?: ChatImage[]) => Promise<void>;
+  sendMessage: (message: string, images?: ChatImage[], overrideContext?: ChatContext) => Promise<void>;
   loadMessages: (messages: ChatMessage[]) => void;
   clearMessages: () => void;
   clearError: () => void;
+  setConversationId: (id: string) => void;
 }
 
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
-  const { conversationId, onMessagesChange } = options;
+  const { conversationId, onMessagesChange, maxHistoryMessages = DEFAULT_MAX_HISTORY, context } = options;
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -35,9 +42,16 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const queryClient = useQueryClient();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Use a ref to track the latest conversationId for use in callbacks
+  const conversationIdRef = useRef<string | undefined>(conversationId);
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+
   // Save messages to backend (debounced)
   const saveMessages = useCallback(async (msgs: ChatMessage[]) => {
-    if (!conversationId) return;
+    const currentConvId = conversationIdRef.current;
+    if (!currentConvId) return;
 
     // Clear any existing timeout
     if (saveTimeoutRef.current) {
@@ -48,16 +62,16 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     saveTimeoutRef.current = setTimeout(async () => {
       setIsSaving(true);
       try {
-        await conversationsApi.update(conversationId, { messages: msgs });
+        await conversationsApi.update(currentConvId, { messages: msgs });
         // Invalidate conversation query to keep cache in sync
-        queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+        queryClient.invalidateQueries({ queryKey: ['conversation', currentConvId] });
       } catch (err) {
         console.error('Failed to save messages:', err);
       } finally {
         setIsSaving(false);
       }
     }, 500);
-  }, [conversationId, queryClient]);
+  }, [queryClient]);
 
   // Clean up timeout on unmount
   useEffect(() => {
@@ -68,7 +82,10 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     };
   }, []);
 
-  const sendMessage = useCallback(async (message: string, images?: ChatImage[]) => {
+  const sendMessage = useCallback(async (message: string, images?: ChatImage[], overrideContext?: ChatContext) => {
+    // Use override context if provided, otherwise use context from options
+    const effectiveContext = overrideContext ?? context;
+
     if (!message.trim() && (!images || images.length === 0)) return;
 
     // Add user message to chat
@@ -80,12 +97,14 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 
     try {
       // Build history for API (exclude the message we just added)
-      const history = messages.map(msg => ({
+      // Limit to last N messages to avoid context length exceeded errors
+      const recentMessages = messages.slice(-maxHistoryMessages);
+      const history = recentMessages.map(msg => ({
         role: msg.role,
         content: msg.content,
       }));
 
-      const response = await sendChatMessage(message, history);
+      const response = await sendChatMessage(message, history, effectiveContext);
 
       // Add assistant response with any tool calls (for error display)
       const assistantMessage: ChatMessage = {
@@ -114,7 +133,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, queryClient, saveMessages, onMessagesChange]);
+  }, [messages, queryClient, saveMessages, onMessagesChange, context, maxHistoryMessages]);
 
   const loadMessages = useCallback((msgs: ChatMessage[]) => {
     setMessages(msgs);
@@ -130,6 +149,11 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     setError(null);
   }, []);
 
+  // Allow external code to update the conversation ID (useful for race conditions)
+  const setConversationId = useCallback((id: string) => {
+    conversationIdRef.current = id;
+  }, []);
+
   return {
     messages,
     isLoading,
@@ -139,6 +163,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     loadMessages,
     clearMessages,
     clearError,
+    setConversationId,
   };
 }
 

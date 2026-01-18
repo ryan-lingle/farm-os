@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Pentagon, Trash2, Edit, Eye, Layers, List, Plus, Info } from 'lucide-react';
+import { Search, MapPin, Pentagon, Archive, Edit, Eye, Layers, List, Plus, Info } from 'lucide-react';
 import { AddressSearch } from './AddressSearch';
 import { cn } from '@/lib/utils';
 import { Location } from '@/hooks/useLocations';
@@ -295,13 +295,13 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                           e.stopPropagation();
                           openDeleteDialog(location);
                         }}
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        className="h-7 w-7 p-0"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Archive className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="left">
-                      <p>Delete</p>
+                      <p>Archive</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -384,9 +384,9 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
                         e.stopPropagation();
                         openDeleteDialog(location);
                       }}
-                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      className="h-6 w-6 p-0"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Archive className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
@@ -428,12 +428,12 @@ export const LocationsSidebar: React.FC<LocationsSidebarProps> = ({
         onSave={handleEditSave}
       />
 
-      {/* Delete Confirmation */}
+      {/* Archive Confirmation */}
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleDeleteConfirm}
-        title="Delete Location"
+        title="Archive Location"
         itemName={deletingLocation?.name}
       />
     </div>

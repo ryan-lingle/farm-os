@@ -6,6 +6,10 @@ import inspect
 from typing import Any, Optional
 from openai import OpenAI
 
+# Maximum character length for tool results to prevent context overflow
+MAX_TOOL_RESULT_LENGTH = 8000
+MAX_HISTORY_MESSAGES = 20
+
 # Import all tool functions from main module
 from main import (
     get_api_info,
@@ -303,21 +307,62 @@ def execute_tool(name: str, arguments: dict) -> Any:
     return func(**arguments)
 
 
-async def chat(message: str, history: Optional[list[dict]] = None) -> dict:
+def _truncate_result(result: Any, max_length: int = MAX_TOOL_RESULT_LENGTH) -> str:
+    """Truncate a tool result to prevent context overflow.
+
+    Args:
+        result: The result to truncate
+        max_length: Maximum character length
+
+    Returns:
+        JSON string of the result, truncated if necessary
+    """
+    result_str = json.dumps(result)
+    if len(result_str) <= max_length:
+        return result_str
+
+    # Try to truncate intelligently for list results
+    if isinstance(result, dict) and "data" in result:
+        data = result.get("data", [])
+        if isinstance(data, list) and len(data) > 5:
+            # Keep only first 5 items and add a truncation note
+            truncated = {
+                **result,
+                "data": data[:5],
+                "_truncated": f"Showing 5 of {len(data)} items. Use more specific filters to see more."
+            }
+            return json.dumps(truncated)
+
+    # Fallback: simple truncation with note
+    truncated_str = result_str[:max_length - 100]
+    return truncated_str + '... [TRUNCATED - result too large]"}'
+
+
+async def chat(message: str, history: Optional[list[dict]] = None, context: Optional[dict] = None) -> dict:
     """Process a chat message and return a response.
 
     Args:
         message: The user's message
         history: Optional list of previous messages in the conversation
+        context: Optional context about a resource being discussed (from "Chat About" feature)
+                 Contains: type (task/plan/asset/location/log), id, and data (markdown)
 
     Returns:
         A dict containing the response message and any tool calls made
     """
+    # Build system prompt, optionally including resource context
+    system_content = SYSTEM_PROMPT
+    if context:
+        context_intro = f"\n\n---\n\n## Current Context\n\nThe user is asking about a specific {context['type']}. Here is the relevant information:\n\n{context['data']}\n\nUse this context to provide more relevant and specific answers. You can still use tools to get additional information if needed."
+        system_content = SYSTEM_PROMPT + context_intro
+
     # Build messages list
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": system_content}]
 
     if history:
-        messages.extend(history)
+        # Limit history to prevent context overflow
+        recent_history = history[-MAX_HISTORY_MESSAGES:] if len(history) > MAX_HISTORY_MESSAGES else history
+        messages.extend(recent_history)
 
     messages.append({"role": "user", "content": message})
 
@@ -387,9 +432,9 @@ async def chat(message: str, history: Optional[list[dict]] = None) -> dict:
                     "error": str(e)
                 })
 
-            # Add tool result to messages
+            # Add tool result to messages (truncated to prevent context overflow)
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
-                "content": json.dumps(result)
+                "content": _truncate_result(result)
             })

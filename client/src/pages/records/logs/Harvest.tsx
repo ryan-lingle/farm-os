@@ -1,6 +1,22 @@
 import { Wheat } from 'lucide-react';
 import { GenericLogPage } from '@/components/GenericLogPage';
 
+const HARVEST_UNITS = [
+  'lbs',
+  'kg',
+  'oz',
+  'g',
+  'bushels',
+  'gallons',
+  'liters',
+  'count',
+  'dozen',
+  'bunches',
+  'heads',
+  'crates',
+  'flats',
+];
+
 const Harvest = () => {
   return (
     <GenericLogPage
@@ -13,6 +29,9 @@ const Harvest = () => {
       showQuantity={true}
       quantityLabel="Amount Harvested"
       defaultUnit="lbs"
+      unitOptions={HARVEST_UNITS}
+      singleAssetSource={true}
+      assetSourceLabel="Harvest From"
     />
   );
 };

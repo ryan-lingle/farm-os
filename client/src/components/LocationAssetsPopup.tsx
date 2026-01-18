@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 interface LocationAssetsPopupProps {
+  locationId: string | number;
   locationName: string;
   assets: Asset[];
   isLoading: boolean;
@@ -44,9 +45,10 @@ const getAssetColor = (assetType: string) => {
   return colorMap[assetType] || 'bg-gray-500/10 text-gray-700 border-gray-300';
 };
 
-export const LocationAssetsPopup: React.FC<LocationAssetsPopupProps> = ({ 
-  locationName, 
-  assets, 
+export const LocationAssetsPopup: React.FC<LocationAssetsPopupProps> = ({
+  locationId,
+  locationName,
+  assets,
   isLoading,
   onAssetClick,
 }) => {
@@ -63,12 +65,21 @@ export const LocationAssetsPopup: React.FC<LocationAssetsPopupProps> = ({
   const totalAssets = assets.length;
 
   return (
-    <div className="min-w-[280px] max-w-[350px]">
+    <div className="min-w-[280px] max-w-[350px] overflow-hidden">
       {/* Header */}
       <div className="mb-3 pb-3 border-b">
-        <div className="flex items-center gap-2 mb-2">
-          <MapPin className="h-4 w-4 text-primary" />
-          <h3 className="font-semibold text-sm">{locationName}</h3>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <MapPin className="h-4 w-4 text-primary shrink-0" />
+            <h3 className="font-semibold text-sm truncate">{locationName}</h3>
+          </div>
+          <a
+            href={`/locations/${locationId}`}
+            className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0 whitespace-nowrap"
+          >
+            View Details
+            <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline" className="text-xs">

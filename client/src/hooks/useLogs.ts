@@ -58,10 +58,10 @@ export function useDeleteLog(logType: string) {
     mutationFn: (id: string) => logsApi.delete(logType, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['logs', logType] });
-      toast.success(`${logType.charAt(0).toUpperCase() + logType.slice(1)} log deleted successfully`);
+      toast.success(`${logType.charAt(0).toUpperCase() + logType.slice(1)} log archived successfully`);
     },
     onError: (error: any) => {
-      showError(error, `Failed to delete ${logType} log`);
+      showError(error, `Failed to archive ${logType} log`);
     },
   });
 }

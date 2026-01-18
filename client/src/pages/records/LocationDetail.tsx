@@ -1,14 +1,40 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Package, FileText, Calendar, ArrowDownLeft, ArrowUpRight, ExternalLink, Map } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import {
+  ArrowLeft,
+  MapPin,
+  Package,
+  FileText,
+  Calendar,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Map,
+  Users,
+  Sprout,
+  Tractor,
+  Building2,
+  Recycle,
+  ChevronRight,
+  FolderOpen,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useLocation as useLocationData } from '@/hooks/useLocations';
+import { useLocation as useLocationData, useLocations, useChildLocations } from '@/hooks/useLocations';
 import { useAssetsAtLocation } from '@/hooks/useAssets';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackReferences } from '@/components/BackReferences';
 import { format } from 'date-fns';
+
+// Asset type icons
+const assetTypeIcons: Record<string, React.ElementType> = {
+  animal: Users,
+  plant: Sprout,
+  equipment: Tractor,
+  structure: Building2,
+  compost: Recycle,
+  material: Package,
+};
 
 export const LocationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +55,9 @@ export const LocationDetail: React.FC = () => {
   }
 
   const { data: location, isLoading } = useLocationData(id);
+  const { locations: allLocations } = useLocations();
+  const { locations: childLocations, isLoading: childrenLoading } = useChildLocations(id);
+  const { assets, isLoading: assetsLoading } = useAssetsAtLocation(id, allLocations);
 
   if (isLoading || !location) {
     return (
@@ -47,13 +76,41 @@ export const LocationDetail: React.FC = () => {
   const incomingCount = attrs.incoming_movement_count || 0;
   const outgoingCount = attrs.outgoing_movement_count || 0;
 
+  // Find parent location
+  const parentLocation = location.parent_id
+    ? allLocations.find((loc) => String(loc.id) === String(location.parent_id))
+    : null;
+
+  // Group assets by type
+  const assetsByType = assets.reduce((acc: Record<string, any[]>, asset: any) => {
+    const type = asset.type || 'unknown';
+    if (!acc[type]) acc[type] = [];
+    acc[type].push(asset);
+    return acc;
+  }, {});
+
   return (
     <div className="p-6 space-y-6">
-      {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate('/locations')}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Map
-      </Button>
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center gap-2 text-sm">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/locations')}>
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Map
+        </Button>
+        {parentLocation && (
+          <>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <Link
+              to={`/locations/${parentLocation.id}`}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {parentLocation.name}
+            </Link>
+          </>
+        )}
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium">{location.name}</span>
+      </div>
 
       {/* Header with Title */}
       <div className="flex items-start justify-between">
@@ -63,7 +120,8 @@ export const LocationDetail: React.FC = () => {
             {location.name}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {location.location_type === 'polygon' ? 'Polygon' : 'Point'} • ID: {location.id}
+            {location.location_type === 'polygon' ? 'Area' : 'Point'}
+            {location.area_acres ? ` • ${location.area_acres.toFixed(2)} acres` : ''}
           </p>
         </div>
         <Button variant="outline" onClick={() => navigate('/locations')}>
@@ -185,6 +243,115 @@ export const LocationDetail: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Assets at this Location */}
+      {(assets.length > 0 || assetsLoading) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Assets at this Location
+            </CardTitle>
+            <CardDescription>
+              {assets.length} asset{assets.length !== 1 ? 's' : ''} currently here
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {assetsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(assetsByType).map(([type, typeAssets]) => {
+                  const Icon = assetTypeIcons[type] || Package;
+                  return (
+                    <div key={type}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium capitalize">{type}s</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {typeAssets.length}
+                        </Badge>
+                      </div>
+                      <div className="grid gap-2">
+                        {typeAssets.map((asset: any) => (
+                          <Link
+                            key={asset.id}
+                            to={`/records/assets/${type}/${asset.id}`}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              <span className="font-medium">{asset.attributes?.name || 'Unnamed'}</span>
+                              {asset.attributes?.quantity && (
+                                <Badge variant="outline" className="text-xs">
+                                  {asset.attributes.quantity}
+                                </Badge>
+                              )}
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Child Locations */}
+      {(childLocations.length > 0 || childrenLoading) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              Sub-Locations
+            </CardTitle>
+            <CardDescription>
+              {childLocations.length} location{childLocations.length !== 1 ? 's' : ''} within {location.name}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {childrenLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {childLocations.map((childLoc) => (
+                  <Link
+                    key={childLoc.id}
+                    to={`/locations/${childLoc.id}`}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium">{childLoc.name}</span>
+                      {childLoc.asset_count !== undefined && childLoc.asset_count > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {childLoc.asset_count} asset{childLoc.asset_count !== 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                      {childLoc.area_acres && (
+                        <span className="text-xs text-muted-foreground">
+                          {childLoc.area_acres.toFixed(2)} ac
+                        </span>
+                      )}
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Movement History */}
       {recentMovements.length > 0 && (

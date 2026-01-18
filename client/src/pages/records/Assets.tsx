@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Tractor, Sprout, Recycle, Plus } from 'lucide-react';
+import { Users, Tractor, Sprout, Recycle, Plus, Building2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -32,6 +32,13 @@ const assetTypes = [
     icon: Recycle,
     url: '/records/assets/compost',
     color: 'text-amber-600'
+  },
+  {
+    title: 'Infrastructure',
+    description: 'Barns, greenhouses, fences, and structures',
+    icon: Building2,
+    url: '/records/assets/infrastructure',
+    color: 'text-slate-600'
   }
 ];
 

@@ -5,6 +5,7 @@ from mcp.server.fastmcp import FastMCP
 
 # API configuration
 FARM_API_URL = os.getenv("FARM_API_URL", "http://localhost:3005/api/v1")
+CLIENT_URL = os.getenv("FARM_CLIENT_URL", "http://localhost:8080")
 
 # Create an MCP server
 mcp = FastMCP("farmAPI")
@@ -85,6 +86,30 @@ def _api_call(endpoint: str, method: str = "GET", params: dict = None, data: dic
         return {"success": False, "error": f"Connection error: {str(e)}"}
     except Exception as e:
         return {"success": False, "error": f"Unexpected error: {str(e)}"}
+
+
+def _add_link_to_response(result: dict, resource_type: str, resource_id: str, extra_path: str = None) -> dict:
+    """Add a client URL link to a successful API response."""
+    if not result.get("success"):
+        return result
+
+    # Build the URL based on resource type
+    url_map = {
+        "asset": f"/records/assets/{extra_path}/{resource_id}" if extra_path else f"/records/assets/{resource_id}",
+        "plan": f"/plans/{resource_id}",
+        "task": f"/tasks/{resource_id}",
+        "cycle": f"/cycles",
+        "location": f"/map",
+        "log": f"/records/logs/{extra_path}/{resource_id}" if extra_path else f"/records/logs/{resource_id}",
+        "tag": f"/tasks",  # Tags are viewed in task context
+    }
+
+    path = url_map.get(resource_type, "")
+    if path:
+        result["link"] = f"{CLIENT_URL}{path}"
+        result["message"] = f"Created successfully. View at: {result['link']}"
+
+    return result
 
 
 # ============================================================================
@@ -184,7 +209,14 @@ def create_asset(
         attributes["geometry"] = geometry
 
     data = {"data": {"type": "asset", "attributes": attributes}}
-    return _api_call(f"assets/{asset_type}", method="POST", data=data)
+    result = _api_call(f"assets/{asset_type}", method="POST", data=data)
+
+    if result.get("success"):
+        resource_id = result.get("data", {}).get("data", {}).get("id")
+        if resource_id:
+            return _add_link_to_response(result, "asset", resource_id, asset_type)
+
+    return result
 
 
 @mcp.tool()
@@ -316,8 +348,14 @@ def create_log(
         attributes["asset_ids"] = asset_ids
 
     data = {"data": {"type": "log", "attributes": attributes}}
+    result = _api_call(f"logs/{log_type}", method="POST", data=data)
 
-    return _api_call(f"logs/{log_type}", method="POST", data=data)
+    if result.get("success"):
+        resource_id = result.get("data", {}).get("data", {}).get("id")
+        if resource_id:
+            return _add_link_to_response(result, "log", resource_id, log_type)
+
+    return result
 
 
 @mcp.tool()
@@ -475,7 +513,14 @@ def create_location(
         attributes["parent_id"] = parent_id
 
     data = {"data": {"type": "location", "attributes": attributes}}
-    return _api_call("locations", method="POST", data=data)
+    result = _api_call("locations", method="POST", data=data)
+
+    if result.get("success"):
+        resource_id = result.get("data", {}).get("data", {}).get("id")
+        if resource_id:
+            return _add_link_to_response(result, "location", resource_id)
+
+    return result
 
 
 @mcp.tool()
@@ -731,9 +776,11 @@ def move_asset(
     )
 
     if log_result.get("success"):
+        log_id = log_result.get("data", {}).get("data", {}).get("id")
         return {
             "success": True,
             "message": f"Successfully moved {asset_name} to {location_name}",
+            "link": f"{CLIENT_URL}/records/logs/movement/{log_id}" if log_id else None,
             "log": log_result
         }
 
@@ -1006,7 +1053,14 @@ def create_task(
         attributes["tag_ids"] = tag_ids
 
     data = {"data": {"type": "task", "attributes": attributes}}
-    return _api_call("tasks", method="POST", data=data)
+    result = _api_call("tasks", method="POST", data=data)
+
+    if result.get("success"):
+        resource_id = result.get("data", {}).get("data", {}).get("id")
+        if resource_id:
+            return _add_link_to_response(result, "task", resource_id)
+
+    return result
 
 
 @mcp.tool()
@@ -1189,7 +1243,14 @@ def create_tag(
         attributes["description"] = description
 
     data = {"data": {"type": "tag", "attributes": attributes}}
-    return _api_call("tags", method="POST", data=data)
+    result = _api_call("tags", method="POST", data=data)
+
+    if result.get("success"):
+        resource_id = result.get("data", {}).get("data", {}).get("id")
+        if resource_id:
+            return _add_link_to_response(result, "tag", resource_id)
+
+    return result
 
 
 @mcp.tool()
@@ -1329,7 +1390,14 @@ def create_plan(
         attributes["parent_id"] = parent_id
 
     data = {"data": {"type": "plan", "attributes": attributes}}
-    return _api_call("plans", method="POST", data=data)
+    result = _api_call("plans", method="POST", data=data)
+
+    if result.get("success"):
+        resource_id = result.get("data", {}).get("data", {}).get("id")
+        if resource_id:
+            return _add_link_to_response(result, "plan", resource_id)
+
+    return result
 
 
 @mcp.tool()
@@ -1478,7 +1546,14 @@ def create_cycle(
     }
 
     data = {"data": {"type": "cycle", "attributes": attributes}}
-    return _api_call("cycles", method="POST", data=data)
+    result = _api_call("cycles", method="POST", data=data)
+
+    if result.get("success"):
+        resource_id = result.get("data", {}).get("data", {}).get("id")
+        if resource_id:
+            return _add_link_to_response(result, "cycle", resource_id)
+
+    return result
 
 
 @mcp.tool()

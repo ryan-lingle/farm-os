@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_01_12_000011) do
+ActiveRecord::Schema[8.0].define(version: 2026_01_15_200236) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -108,6 +108,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_01_12_000011) do
     t.bigint "from_location_id"
     t.bigint "to_location_id"
     t.datetime "moved_at"
+    t.datetime "archived_at"
     t.index ["from_location_id"], name: "index_logs_on_from_location_id"
     t.index ["to_location_id"], name: "index_logs_on_to_location_id"
   end

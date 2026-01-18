@@ -6,6 +6,11 @@ module Api
 
       def index
         @logs = Log.where(log_type: @log_type)
+
+        # Filter out archived logs by default (unless explicitly requested)
+        @logs = @logs.active unless params[:archived] == "true"
+
+        # Optional status filter
         @logs = @logs.where(status: params[:filter][:status]) if params.dig(:filter, :status)
 
         # Handle pagination - support both page[number] and page formats
@@ -56,7 +61,7 @@ module Api
       end
 
       def destroy
-        @log.destroy
+        @log.archive!
         head :no_content
       end
 

@@ -56,6 +56,29 @@ export interface Asset {
       status: string;
       to_location_id?: number | null;
     }>;
+    // Movement history
+    movement_count?: number;
+    recent_movements?: Array<{
+      id: number;
+      name: string;
+      timestamp: string;
+      status: string;
+      from_location_id?: number | null;
+      to_location_id?: number | null;
+    }>;
+    // Parent/children summaries
+    parent_summary?: {
+      id: number;
+      name: string;
+      asset_type: string;
+    } | null;
+    children_summaries?: Array<{
+      id: number;
+      name: string;
+      asset_type: string;
+      status: string;
+      quantity?: number;
+    }>;
     // Back-references
     referencing_task_count?: number;
     referencing_plan_count?: number;
@@ -114,6 +137,7 @@ export interface Log {
     to_location_id?: number | null;
     from_location_id?: number | null;
     is_movement?: boolean;
+    archived_at?: string | null;
     // Asset associations
     asset_count?: number;
     asset_details?: Array<{
@@ -1243,19 +1267,27 @@ export interface Conversation {
     status: ConversationStatus;
     task_id?: number | null;
     plan_id?: number | null;
+    asset_id?: number | null;
+    asset_type?: string | null;
+    location_id?: number | null;
+    log_id?: number | null;
+    log_type?: string | null;
     messages: ChatMessage[];
     created_at: string;
     updated_at: string;
     // Computed fields
     default_title?: string;
     has_context?: boolean;
-    context_type?: 'task' | 'plan' | null;
+    context_type?: 'task' | 'plan' | 'asset' | 'location' | 'log' | null;
     is_active?: boolean;
     is_archived?: boolean;
   };
   relationships?: {
     task?: { data: { id: string; type: string } | null };
     plan?: { data: { id: string; type: string } | null };
+    asset?: { data: { id: string; type: string } | null };
+    location?: { data: { id: string; type: string } | null };
+    log?: { data: { id: string; type: string } | null };
   };
 }
 
@@ -1263,6 +1295,9 @@ export interface ConversationFilters {
   status?: ConversationStatus;
   task_id?: number | string;
   plan_id?: number | string;
+  asset_id?: number | string;
+  location_id?: number | string;
+  log_id?: number | string;
   with_context?: boolean;
 }
 
@@ -1281,6 +1316,15 @@ export const conversationsApi = {
     }
     if (filters?.plan_id) {
       params.append('filter[plan_id]', filters.plan_id.toString());
+    }
+    if (filters?.asset_id) {
+      params.append('filter[asset_id]', filters.asset_id.toString());
+    }
+    if (filters?.location_id) {
+      params.append('filter[location_id]', filters.location_id.toString());
+    }
+    if (filters?.log_id) {
+      params.append('filter[log_id]', filters.log_id.toString());
     }
     if (filters?.with_context) {
       params.append('filter[with_context]', 'true');
@@ -1302,6 +1346,11 @@ export const conversationsApi = {
     external_id?: string;
     task_id?: number;
     plan_id?: number;
+    asset_id?: number;
+    asset_type?: string;
+    location_id?: number;
+    log_id?: number;
+    log_type?: string;
     messages?: ChatMessage[];
   }) => {
     return fetchApi<ApiResponse<Conversation>>(
@@ -1319,6 +1368,11 @@ export const conversationsApi = {
     status: ConversationStatus;
     task_id: number | null;
     plan_id: number | null;
+    asset_id: number | null;
+    asset_type: string | null;
+    location_id: number | null;
+    log_id: number | null;
+    log_type: string | null;
     messages: ChatMessage[];
   }>) => {
     return fetchApi<ApiResponse<Conversation>>(

@@ -26,6 +26,7 @@ import {
   Calendar,
   Clock,
   ChevronRight,
+  ChevronDown,
   Trash2,
   Edit,
   ArrowRight,
@@ -43,6 +44,8 @@ interface TaskListItemProps {
   showPlan?: boolean;
   planName?: string;
   indent?: number;
+  children?: Task[];
+  allTasks?: Task[];
 }
 
 // State badge colors (Linear-inspired)
@@ -69,18 +72,30 @@ export function TaskListItem({
   showPlan = false,
   planName,
   indent = 0,
+  children,
+  allTasks,
 }: TaskListItemProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-  const { data: allTags } = useTags();
+  const { data: allTagsData } = useTags();
+
+  // Get child tasks - either from props or find from allTasks
+  const childTasks = useMemo(() => {
+    if (children) return children;
+    if (!allTasks) return [];
+    return allTasks.filter((t) => t.parentId === parseInt(task.id, 10));
+  }, [children, allTasks, task.id]);
+
+  const hasChildren = (task.childCount ?? 0) > 0 || childTasks.length > 0;
 
   // Get tag objects for this task
   const taskTags = useMemo(() => {
-    if (!allTags || !task.tagIds || task.tagIds.length === 0) return [];
-    return allTags.filter((tag) => task.tagIds.includes(tag.id));
-  }, [allTags, task.tagIds]);
+    if (!allTagsData || !task.tagIds || task.tagIds.length === 0) return [];
+    return allTagsData.filter((tag) => task.tagIds.includes(tag.id));
+  }, [allTagsData, task.tagIds]);
 
   // Navigate to task detail page on click
   const handleClick = () => {
@@ -126,6 +141,7 @@ export function TaskListItem({
   const stateColor = stateColors[task.state];
 
   return (
+    <>
     <div
       ref={setNodeRef}
       style={style}
@@ -150,9 +166,23 @@ export function TaskListItem({
       >
         <GripVertical className="h-4 w-4" />
       </div>
-      {/* Subtask indicator */}
-      {(task.childCount ?? 0) > 0 && (
-        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      {/* Subtask expand/collapse toggle */}
+      {hasChildren ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+          className="shrink-0 p-0.5 hover:bg-accent rounded transition-colors"
+        >
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+      ) : (
+        <div className="w-5 shrink-0" /> /* Spacer for alignment */
       )}
 
       {/* Task title */}
@@ -290,6 +320,23 @@ export function TaskListItem({
         </DropdownMenu>
       </div>
     </div>
+    {/* Render children when expanded */}
+    {isExpanded && childTasks.length > 0 && (
+      <div className="bg-muted/20">
+        {childTasks.map((childTask) => (
+          <TaskListItem
+            key={childTask.id}
+            task={childTask}
+            onClick={onClick}
+            onEdit={onEdit}
+            planName={planName}
+            indent={indent + 1}
+            allTasks={allTasks}
+          />
+        ))}
+      </div>
+    )}
+    </>
   );
 }
 

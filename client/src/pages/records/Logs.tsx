@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Plus, Hammer, Calendar, FileText } from 'lucide-react';
+import { Package, Plus, Hammer, Calendar, FileText, MoveRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -32,6 +32,13 @@ const logTypes = [
     icon: Calendar,
     url: '/records/logs/observation',
     color: 'text-purple-600'
+  },
+  {
+    title: 'Movement',
+    description: 'Track asset movements between locations',
+    icon: MoveRight,
+    url: '/records/logs/movement',
+    color: 'text-cyan-600'
   }
 ];
 

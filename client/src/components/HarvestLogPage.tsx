@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, Trash2, Eye, Pencil, CheckCircle2, Clock } from 'lucide-react';
+import { Package, Archive, Eye, Pencil, CheckCircle2, Clock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -223,21 +223,21 @@ export const HarvestLogPage: React.FC = () => {
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm">
-                          <Trash2 className="h-4 w-4" />
+                          <Archive className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Harvest Log</AlertDialogTitle>
+                          <AlertDialogTitle>Archive Harvest Log</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to delete this harvest log? This action cannot be
-                            undone.
+                            Are you sure you want to archive this harvest log? It will be hidden from
+                            lists but can be restored later.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction onClick={() => handleDelete(log.id)}>
-                            Delete
+                            Archive
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -319,23 +319,23 @@ export const HarvestLogPage: React.FC = () => {
                 <div className="flex justify-between pt-4">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                      <Button variant="outline">
+                        <Archive className="h-4 w-4 mr-2" />
+                        Archive
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Harvest Log</AlertDialogTitle>
+                        <AlertDialogTitle>Archive Harvest Log</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete this harvest log? This action cannot be
-                          undone.
+                          Are you sure you want to archive this harvest log? It will be hidden from
+                          lists but can be restored later.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={() => handleDelete(selectedLog.id)}>
-                          Delete
+                          Archive
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

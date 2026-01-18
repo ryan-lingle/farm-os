@@ -1,5 +1,5 @@
 /**
- * DeleteConfirmDialog - Reusable confirmation dialog for delete actions
+ * DeleteConfirmDialog - Reusable confirmation dialog for archive/delete actions
  */
 
 import {
@@ -20,6 +20,8 @@ interface DeleteConfirmDialogProps {
   title?: string;
   description?: string;
   itemName?: string;
+  actionLabel?: string;
+  variant?: 'destructive' | 'default';
 }
 
 export function DeleteConfirmDialog({
@@ -29,6 +31,8 @@ export function DeleteConfirmDialog({
   title = 'Are you sure?',
   description,
   itemName,
+  actionLabel = 'Archive',
+  variant = 'default',
 }: DeleteConfirmDialogProps) {
   const handleConfirm = () => {
     onConfirm();
@@ -36,8 +40,8 @@ export function DeleteConfirmDialog({
   };
 
   const defaultDescription = itemName
-    ? `This will permanently delete "${itemName}". This action cannot be undone.`
-    : 'This action cannot be undone.';
+    ? `Are you sure you want to archive "${itemName}"? It will be hidden from lists but can be restored later.`
+    : 'This item will be hidden from lists but can be restored later.';
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -52,9 +56,9 @@ export function DeleteConfirmDialog({
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className={variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
           >
-            Delete
+            {actionLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
