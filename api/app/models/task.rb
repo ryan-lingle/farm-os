@@ -47,6 +47,7 @@ class Task < ApplicationRecord
 
   # Callbacks
   before_validation :set_defaults
+  before_save :sync_cycle_from_target_date, if: :target_date_changed?
 
   # State methods
   def backlog?
@@ -189,5 +190,15 @@ class Task < ApplicationRecord
 
   def set_defaults
     self.state ||= 'backlog'
+  end
+
+  # Automatically assign cycle based on target_date
+  # When target_date is set, find or create the cycle for that month
+  def sync_cycle_from_target_date
+    if target_date.present?
+      self.cycle = Cycle.generate_for_date(target_date)
+    else
+      self.cycle = nil
+    end
   end
 end

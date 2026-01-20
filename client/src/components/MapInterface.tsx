@@ -58,6 +58,7 @@ const MapInterface = () => {
   const [drawMode, setDrawMode] = useState<'polygon' | 'select'>('select');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mapStyle, setMapStyle] = useState<'outdoors' | 'terrain'>('terrain');
+  const [showTopography, setShowTopography] = useState(false);
   
   // Location creation dialog state
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -241,6 +242,21 @@ const MapInterface = () => {
       setIsCreateDialogOpen(true);
     });
 
+    // Add terrain DEM source for topography visualization
+    map.current.on('style.load', () => {
+      if (!map.current) return;
+
+      // Add the DEM source if it doesn't exist
+      if (!map.current.getSource('mapbox-dem')) {
+        map.current.addSource('mapbox-dem', {
+          type: 'raster-dem',
+          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          tileSize: 512,
+          maxzoom: 14
+        });
+      }
+    });
+
     // Handle draw update
     map.current.on('draw.update', async (e: any) => {
       const feature = e.features[0];
@@ -329,6 +345,58 @@ const MapInterface = () => {
       }
     });
   }, [mapStyle]);
+
+  // Handle topography (3D terrain) toggle
+  useEffect(() => {
+    if (!map.current) return;
+
+    const applyTerrain = () => {
+      if (!map.current) return;
+
+      // Ensure DEM source exists
+      if (!map.current.getSource('mapbox-dem')) {
+        map.current.addSource('mapbox-dem', {
+          type: 'raster-dem',
+          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          tileSize: 512,
+          maxzoom: 14
+        });
+      }
+
+      if (showTopography) {
+        // Enable 3D terrain with exaggeration
+        map.current.setTerrain({
+          source: 'mapbox-dem',
+          exaggeration: 1.5
+        });
+        // Adjust camera for better 3D viewing
+        const currentPitch = map.current.getPitch();
+        if (currentPitch < 45) {
+          map.current.easeTo({
+            pitch: 50,
+            duration: 500
+          });
+        }
+        console.log('[MapInterface] 3D terrain enabled');
+      } else {
+        // Disable terrain
+        map.current.setTerrain(null);
+        // Reset camera pitch
+        map.current.easeTo({
+          pitch: 0,
+          duration: 500
+        });
+        console.log('[MapInterface] 3D terrain disabled');
+      }
+    };
+
+    // Apply terrain if style is loaded, otherwise wait
+    if (map.current.isStyleLoaded()) {
+      applyTerrain();
+    } else {
+      map.current.once('style.load', applyTerrain);
+    }
+  }, [showTopography]);
 
   // Handle draw mode changes
   useEffect(() => {
@@ -808,6 +876,8 @@ const MapInterface = () => {
           sidebarOpen={sidebarOpen}
           mapStyle={mapStyle}
           onMapStyleChange={setMapStyle}
+          showTopography={showTopography}
+          onTopographyToggle={() => setShowTopography(!showTopography)}
         />
 
         {/* Map */}

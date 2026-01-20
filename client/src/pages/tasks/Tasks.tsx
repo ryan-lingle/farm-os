@@ -4,18 +4,32 @@
  */
 
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTasks, Task, TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { usePlans } from '@/hooks/usePlans';
-import { TaskList, TaskFilters, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
+import { TaskList, TaskCalendar, TaskFilters, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayoutList, Kanban } from 'lucide-react';
+import { LayoutList, Kanban, Calendar } from 'lucide-react';
 
 export default function Tasks() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<TaskFiltersType>({});
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
+
+  // Read view mode from URL params, default to 'list'
+  const viewParam = searchParams.get('view');
+  const viewMode = (viewParam === 'calendar' || viewParam === 'board') ? viewParam : 'list';
+
+  const setViewMode = (mode: 'list' | 'board' | 'calendar') => {
+    if (mode === 'list') {
+      searchParams.delete('view');
+    } else {
+      searchParams.set('view', mode);
+    }
+    setSearchParams(searchParams);
+  };
 
   const { tasks, isLoading } = useTasks(filters);
   const { plans } = usePlans();
@@ -50,14 +64,25 @@ export default function Tasks() {
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => setViewMode('list')}
+                title="List view"
               >
                 <LayoutList className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setViewMode('calendar')}
+                title="Calendar view"
+              >
+                <Calendar className="h-4 w-4" />
               </Button>
               <Button
                 variant={viewMode === 'board' ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => setViewMode('board')}
+                title="Board view"
               >
                 <Kanban className="h-4 w-4" />
               </Button>
@@ -71,10 +96,12 @@ export default function Tasks() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
-        {/* Quick create */}
-        <TaskQuickCreate className="mb-6" onCreated={() => {}} />
+        {/* Quick create - hide in calendar view for cleaner UI */}
+        {viewMode !== 'calendar' && (
+          <TaskQuickCreate className="mb-6" onCreated={() => {}} />
+        )}
 
-        {/* Task list */}
+        {/* Task views */}
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-muted-foreground">Loading tasks...</div>
@@ -87,6 +114,11 @@ export default function Tasks() {
             onTaskEdit={handleQuickEdit}
             onAddTask={handleAddTask}
             emptyMessage="No tasks found. Create your first task above!"
+          />
+        ) : viewMode === 'calendar' ? (
+          <TaskCalendar
+            tasks={tasks}
+            onTaskClick={handleQuickEdit}
           />
         ) : (
           // TODO: Kanban board view

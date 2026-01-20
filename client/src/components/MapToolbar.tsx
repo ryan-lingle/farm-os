@@ -1,8 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MousePointer, Pentagon, Menu, X, Mountain, Globe } from 'lucide-react';
+import { MousePointer, Pentagon, Menu, X, Mountain, Globe, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MapToolbarProps {
   drawMode: 'polygon' | 'select';
@@ -11,6 +12,8 @@ interface MapToolbarProps {
   sidebarOpen: boolean;
   mapStyle: 'outdoors' | 'terrain';
   onMapStyleChange: (style: 'outdoors' | 'terrain') => void;
+  showTopography?: boolean;
+  onTopographyToggle?: () => void;
 }
 
 export const MapToolbar: React.FC<MapToolbarProps> = ({
@@ -20,6 +23,8 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
   sidebarOpen,
   mapStyle,
   onMapStyleChange,
+  showTopography = false,
+  onTopographyToggle,
 }) => {
   return (
     <div className="absolute top-4 left-4 z-10 flex gap-2">
@@ -80,6 +85,30 @@ export const MapToolbar: React.FC<MapToolbarProps> = ({
           <Globe className="h-4 w-4" />
         </ToggleGroupItem>
       </ToggleGroup>
+
+      {/* Topography (3D Terrain) Toggle */}
+      {onTopographyToggle && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onTopographyToggle}
+                className={cn(
+                  "bg-map-toolbar border shadow-toolbar hover:bg-accent",
+                  showTopography && "bg-primary text-primary-foreground hover:bg-primary"
+                )}
+              >
+                <Layers className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{showTopography ? 'Disable 3D Terrain' : 'Enable 3D Terrain'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 };

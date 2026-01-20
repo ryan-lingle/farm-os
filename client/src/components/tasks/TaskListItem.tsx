@@ -188,7 +188,7 @@ export function TaskListItem({
       {/* Task title */}
       <span
         className={cn(
-          'flex-1 text-sm truncate',
+          'flex-1 text-sm truncate min-w-[200px]',
           isCompleted && 'line-through text-muted-foreground'
         )}
       >
@@ -204,7 +204,7 @@ export function TaskListItem({
 
       {/* Plan name */}
       {planName && (
-        <span className="shrink-0 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+        <span className="shrink-0 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded max-w-[180px] truncate">
           {planName}
         </span>
       )}

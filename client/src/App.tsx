@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import Index from "./pages/Index";
@@ -70,6 +70,7 @@ const App = () => (
                   <Route path="/records/logs/observation" element={<Observation />} />
                   <Route path="/records/logs/movement" element={<Movement />} />
                   <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/tasks/calendar" element={<Navigate to="/tasks?view=calendar" replace />} />
                   <Route path="/tasks/:id" element={<TaskPage />} />
                   <Route path="/tasks/plans" element={<Plans />} />
                   <Route path="/tasks/plans/:id" element={<PlanDetail />} />

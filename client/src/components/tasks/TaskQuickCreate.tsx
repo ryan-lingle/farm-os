@@ -29,7 +29,9 @@ import { format } from 'date-fns';
 interface TaskQuickCreateProps {
   defaultPlanId?: number;
   defaultCycleId?: number;
+  defaultParentId?: number;
   defaultState?: TaskState;
+  placeholder?: string;
   onCreated?: () => void;
   className?: string;
 }
@@ -37,7 +39,9 @@ interface TaskQuickCreateProps {
 export function TaskQuickCreate({
   defaultPlanId,
   defaultCycleId,
+  defaultParentId,
   defaultState = 'backlog',
+  placeholder = 'Add a task... (Enter to create, Tab for options)',
   onCreated,
   className,
 }: TaskQuickCreateProps) {
@@ -88,6 +92,7 @@ export function TaskQuickCreate({
       await createTask.mutateAsync({
         title: title.trim(),
         planId,
+        parentId: defaultParentId,
         state: defaultState,
         cycleId,
         estimate: estimateMinutes,
@@ -132,7 +137,7 @@ export function TaskQuickCreate({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Add a task... (Enter to create, Tab for options)"
+            placeholder={placeholder}
             className="border-0 shadow-none focus-visible:ring-0 p-0 h-8"
           />
           <Button

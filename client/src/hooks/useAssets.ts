@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assetsApi, Asset } from '@/lib/api';
 import { toast } from 'sonner';
 import { showError } from '@/components/ErrorToast';
@@ -92,35 +92,38 @@ export function useDeleteAsset(assetType: string) {
 // Hook to fetch all assets at a specific location (including child locations)
 export function useAssetsAtLocation(locationId: string | number | undefined, locations?: any[]) {
   const assetTypes = ['animal', 'plant', 'equipment', 'structure', 'compost', 'material'];
-  
+
   // Get all location IDs to query (this location + all descendants)
   const locationIdsToQuery = React.useMemo(() => {
-    if (!locationId || !locations) return [locationId];
-    
+    if (!locationId || !locations) return locationId ? [locationId] : [];
+
     const getAllDescendants = (id: string | number): (string | number)[] => {
       const children = locations.filter(loc => String(loc.parent_id) === String(id));
       const allIds = [id];
-      
+
       children.forEach(child => {
         allIds.push(...getAllDescendants(child.id));
       });
-      
+
       return allIds;
     };
-    
+
     return getAllDescendants(locationId);
   }, [locationId, locations]);
 
-  // Fetch assets for each asset type and each location
-  const queries = assetTypes.flatMap(assetType => 
-    locationIdsToQuery.map(locId => 
-      useQuery({
+  // Build query configs for useQueries (this handles dynamic number of queries safely)
+  const queryConfigs = React.useMemo(() => {
+    return assetTypes.flatMap(assetType =>
+      locationIdsToQuery.map(locId => ({
         queryKey: ['assets', assetType, 'location', locId],
         queryFn: () => assetsApi.list(assetType, 1, 100, { current_location_id: locId }),
         enabled: !!locId,
-      })
-    )
-  );
+      }))
+    );
+  }, [locationIdsToQuery]);
+
+  // Use useQueries for dynamic number of queries (React hooks safe)
+  const queries = useQueries({ queries: queryConfigs });
 
   return {
     assets: queries.flatMap(q => q.data?.data || []),

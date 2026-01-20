@@ -22,8 +22,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useLocation as useLocationData, useLocations, useChildLocations } from '@/hooks/useLocations';
 import { useAssetsAtLocation } from '@/hooks/useAssets';
+import { useLocationClimate, getCenterFromGeometry } from '@/hooks/useLocationClimate';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackReferences } from '@/components/BackReferences';
+import { LocationDetailMap } from '@/components/LocationDetailMap';
+import { ClimateSummaryCard } from '@/components/ClimateSummaryCard';
 import { format } from 'date-fns';
 
 // Asset type icons
@@ -40,6 +43,19 @@ export const LocationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  // All hooks must be called before any early returns
+  const { data: location, isLoading } = useLocationData(id || '');
+  const { locations: allLocations } = useLocations();
+  const { locations: childLocations, isLoading: childrenLoading } = useChildLocations(id || '');
+  const { assets, isLoading: assetsLoading } = useAssetsAtLocation(id || '', allLocations);
+
+  // Get center coordinates for climate data
+  const center = location ? getCenterFromGeometry(location.geometry) : null;
+  const { data: climate, isLoading: climateLoading, error: climateError } = useLocationClimate(
+    center ? center[0] : null,
+    center ? center[1] : null
+  );
+
   if (!id) {
     return (
       <div className="p-6">
@@ -53,11 +69,6 @@ export const LocationDetail: React.FC = () => {
       </div>
     );
   }
-
-  const { data: location, isLoading } = useLocationData(id);
-  const { locations: allLocations } = useLocations();
-  const { locations: childLocations, isLoading: childrenLoading } = useChildLocations(id);
-  const { assets, isLoading: assetsLoading } = useAssetsAtLocation(id, allLocations);
 
   if (isLoading || !location) {
     return (
@@ -148,6 +159,11 @@ export const LocationDetail: React.FC = () => {
           </Badge>
         )}
       </div>
+
+      {/* Interactive Map */}
+      {location.geometry && (
+        <LocationDetailMap location={location} />
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -243,6 +259,15 @@ export const LocationDetail: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Climate Data */}
+      {center && (
+        <ClimateSummaryCard
+          climate={climate}
+          isLoading={climateLoading}
+          error={climateError as Error | null}
+        />
+      )}
 
       {/* Assets at this Location */}
       {(assets.length > 0 || assetsLoading) && (

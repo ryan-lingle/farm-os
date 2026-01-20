@@ -7,7 +7,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePlan, useUpdatePlan, useDeletePlan, PlanStatus } from '@/hooks/usePlans';
 import { useTasks, Task, TaskFilters as TaskFiltersType } from '@/hooks/useTasks';
 import { useCreateConversation } from '@/hooks/useConversations';
-import { TaskList, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
+import { TaskList, TaskCalendar, TaskQuickCreate, TaskDetailPanel } from '@/components/tasks';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,8 @@ import {
   Play,
   Check,
   X,
+  LayoutList,
+  Kanban,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -191,6 +193,7 @@ export default function PlanDetail() {
   const [detailPanelOpen, setDetailPanelOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [description, setDescription] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'board'>('list');
 
   // Sync local description state with plan data
   useEffect(() => {
@@ -299,6 +302,36 @@ export default function PlanDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <div className="flex items-center border rounded-lg p-1 mr-2">
+              <Button
+                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setViewMode('list')}
+                title="List view"
+              >
+                <LayoutList className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setViewMode('calendar')}
+                title="Calendar view"
+              >
+                <Calendar className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'board' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setViewMode('board')}
+                title="Board view"
+              >
+                <Kanban className="h-4 w-4" />
+              </Button>
+            </div>
             {/* Quick status actions */}
             {plan.status === 'planned' && (
               <Button
@@ -393,31 +426,35 @@ export default function PlanDetail() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
-        {/* Plan Description - Rich Text Editor */}
-        <div className="mb-6">
-          <RichTextEditor
-            content={description}
-            onChange={handleDescriptionChange}
-            onBlur={handleDescriptionBlur}
-            placeholder="Add a plan description, notes, or documentation..."
-            className="min-h-[120px]"
-            minimal
+        {/* Plan Description - Rich Text Editor (hidden in calendar view for more space) */}
+        {viewMode !== 'calendar' && (
+          <div className="mb-6">
+            <RichTextEditor
+              content={description}
+              onChange={handleDescriptionChange}
+              onBlur={handleDescriptionBlur}
+              placeholder="Add a plan description, notes, or documentation..."
+              className="min-h-[120px]"
+              minimal
+            />
+          </div>
+        )}
+
+        {/* Quick create - hide in calendar view for cleaner UI */}
+        {viewMode !== 'calendar' && (
+          <TaskQuickCreate
+            className="mb-6"
+            defaultPlanId={parseInt(id!, 10)}
+            onCreated={() => {}}
           />
-        </div>
+        )}
 
-        {/* Quick create */}
-        <TaskQuickCreate
-          className="mb-6"
-          defaultPlanId={parseInt(id!, 10)}
-          onCreated={() => {}}
-        />
-
-        {/* Task list */}
+        {/* Task views */}
         {tasksLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-muted-foreground">Loading tasks...</div>
           </div>
-        ) : (
+        ) : viewMode === 'list' ? (
           <TaskList
             tasks={tasks}
             groupBy="state"
@@ -425,6 +462,15 @@ export default function PlanDetail() {
             onTaskEdit={handleTaskEdit}
             emptyMessage="No tasks in this plan yet. Create your first task above!"
           />
+        ) : viewMode === 'calendar' ? (
+          <TaskCalendar
+            tasks={tasks}
+            onTaskClick={handleTaskClick}
+          />
+        ) : (
+          <div className="text-center py-12 text-muted-foreground">
+            Board view coming soon
+          </div>
         )}
       </div>
 

@@ -3,16 +3,17 @@
  * Linear-inspired layout with editable title, description, and metadata
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useTask, useUpdateTask, useDeleteTask, TaskState, useSubtasks } from '@/hooks/useTasks';
+import { useTask, useUpdateTask, useDeleteTask, TaskState, useSubtasks, Task } from '@/hooks/useTasks';
 import { usePlans } from '@/hooks/usePlans';
 import { useCycles } from '@/hooks/useCycles';
 import { useTags } from '@/hooks/useTags';
 import { useCreateConversation } from '@/hooks/useConversations';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
-import { TaskList } from '@/components/tasks';
+import { TaskList, TaskQuickCreate } from '@/components/tasks';
 import { TagInput } from '@/components/tags';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,7 @@ import {
   ArrowLeft,
   Calendar as CalendarIcon,
   Clock,
+  ExternalLink,
   FolderKanban,
   MessageSquare,
   MoreHorizontal,
@@ -50,6 +52,46 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { BackReferences } from '@/components/BackReferences';
 import { format } from 'date-fns';
+
+// Helper to strip HTML tags for plain text description
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return '';
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || '';
+}
+
+// Generate Google Calendar URL for a task
+function generateGoogleCalendarUrl(task: {
+  title: string;
+  description?: string | null;
+  targetDate?: string | null;
+}): string {
+  const baseUrl = 'https://calendar.google.com/calendar/render';
+  const params = new URLSearchParams();
+
+  params.set('action', 'TEMPLATE');
+  params.set('text', task.title);
+
+  // Add description (stripped of HTML)
+  const plainDescription = stripHtml(task.description);
+  if (plainDescription) {
+    params.set('details', plainDescription);
+  }
+
+  // Add date as all-day event
+  if (task.targetDate) {
+    // Format: YYYYMMDD for all-day events
+    const dateStr = task.targetDate.replace(/-/g, '');
+    // For all-day events, end date should be the next day
+    const startDate = new Date(task.targetDate);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+    const endDateStr = endDate.toISOString().split('T')[0].replace(/-/g, '');
+    params.set('dates', `${dateStr}/${endDateStr}`);
+  }
+
+  return `${baseUrl}?${params.toString()}`;
+}
 
 // State options with colors
 const stateOptions: { value: TaskState; label: string; color: string }[] = [
@@ -76,6 +118,32 @@ export default function TaskPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [estimate, setEstimate] = useState('');
+
+  // Subtask view state
+  const [subtaskView, setSubtaskView] = useState<'all' | 'active' | 'completed'>('all');
+
+  // Filter subtasks based on view
+  const filteredSubtasks = useMemo(() => {
+    if (!subtasks) return [];
+    switch (subtaskView) {
+      case 'active':
+        return subtasks.filter((t: Task) => t.state === 'todo' || t.state === 'in_progress');
+      case 'completed':
+        return subtasks.filter((t: Task) => t.state === 'done' || t.state === 'cancelled');
+      default:
+        return subtasks;
+    }
+  }, [subtasks, subtaskView]);
+
+  // Count subtasks by category
+  const subtaskCounts = useMemo(() => {
+    if (!subtasks) return { all: 0, active: 0, completed: 0 };
+    return {
+      all: subtasks.length,
+      active: subtasks.filter((t: Task) => t.state === 'todo' || t.state === 'in_progress').length,
+      completed: subtasks.filter((t: Task) => t.state === 'done' || t.state === 'cancelled').length,
+    };
+  }, [subtasks]);
 
   // Sync local state with task data
   useEffect(() => {
@@ -237,6 +305,21 @@ export default function TaskPage() {
           <Button
             variant="outline"
             size="sm"
+            asChild
+          >
+            <a
+              href={generateGoogleCalendarUrl(task)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Add to Google Calendar
+              <ExternalLink className="h-3 w-3 ml-1 opacity-50" />
+            </a>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleChatAboutTask}
             disabled={createConversation.isPending}
           >
@@ -313,22 +396,6 @@ export default function TaskPage() {
                 className="min-h-[200px]"
                 minimal
               />
-
-              {/* Subtasks */}
-              {subtasks && subtasks.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Subtasks ({subtasks.length})
-                  </h3>
-                  <TaskList
-                    tasks={subtasks}
-                    plans={plans}
-                    groupBy="none"
-                    onTaskClick={(t) => navigate(`/tasks/${t.id}`)}
-                    emptyMessage="No subtasks"
-                  />
-                </div>
-              )}
             </div>
 
             {/* Sidebar - Clean, minimal like Linear */}
@@ -465,6 +532,61 @@ export default function TaskPage() {
                 <p>Updated {format(new Date(task.updatedAt), 'MMM d, yyyy')}</p>
               </div>
             </div>
+          </div>
+
+          {/* Subtasks Section - Full width below the grid */}
+          <div className="border-t pt-6 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium">
+                Subtasks
+                {subtaskCounts.all > 0 && (
+                  <span className="text-muted-foreground ml-1">
+                    ({subtaskCounts.completed}/{subtaskCounts.all})
+                  </span>
+                )}
+              </h3>
+
+              {/* View tabs */}
+              {subtaskCounts.all > 0 && (
+                <Tabs value={subtaskView} onValueChange={(v) => setSubtaskView(v as 'all' | 'active' | 'completed')}>
+                  <TabsList className="h-8">
+                    <TabsTrigger value="all" className="text-xs px-3 h-6">
+                      All ({subtaskCounts.all})
+                    </TabsTrigger>
+                    <TabsTrigger value="active" className="text-xs px-3 h-6">
+                      Active ({subtaskCounts.active})
+                    </TabsTrigger>
+                    <TabsTrigger value="completed" className="text-xs px-3 h-6">
+                      Completed ({subtaskCounts.completed})
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+            </div>
+
+            {/* Quick create subtask */}
+            <TaskQuickCreate
+              className="mb-4"
+              defaultParentId={id ? parseInt(id, 10) : undefined}
+              defaultPlanId={task?.planId}
+              placeholder="Add a subtask..."
+              onCreated={() => {}}
+            />
+
+            {/* Subtask list with state grouping */}
+            {filteredSubtasks.length > 0 ? (
+              <TaskList
+                tasks={filteredSubtasks}
+                plans={plans}
+                groupBy="state"
+                onTaskClick={(t) => navigate(`/tasks/${t.id}`)}
+                emptyMessage="No subtasks"
+              />
+            ) : subtaskCounts.all > 0 ? (
+              <div className="text-sm text-muted-foreground py-4 text-center">
+                No {subtaskView} subtasks
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
