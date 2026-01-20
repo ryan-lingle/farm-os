@@ -9,6 +9,7 @@ import { Layers, Mountain, Maximize2, Trash2, Sparkles, MessageCircle, X, Loader
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatCommands, useClientContext } from '@/hooks/useChatBridge';
+import { ChatBridge } from '@/lib/chat-bridge';
 import type { ChatCommand } from '@/lib/chat-bridge';
 import { useChat } from '@/hooks/useChat';
 import { useCreateConversation, useUpdateConversation } from '@/hooks/useConversations';
@@ -486,6 +487,24 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
     }
   }, [overlayFeatures]);
 
+  // Inject drawn features into ChatBridge context so AI can "read" them
+  useEffect(() => {
+    if (overlayFeatures.length > 0) {
+      ChatBridge.injectContext('drawnFeatures', {
+        features: overlayFeatures,
+        label: overlayLabel || 'AI Suggestions',
+        count: overlayFeatures.length,
+      });
+    } else {
+      ChatBridge.removeContext('drawnFeatures');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      ChatBridge.removeContext('drawnFeatures');
+    };
+  }, [overlayFeatures, overlayLabel]);
+
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
     if (!fullscreenContainer.current) return;
@@ -680,6 +699,11 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
                 {clientContext.topography && (
                   <span className="ml-1 text-green-600 dark:text-green-400">(with topography data)</span>
                 )}
+                {overlayFeatures.length > 0 && (
+                  <span className="ml-1 text-purple-600 dark:text-purple-400">
+                    ({overlayFeatures.length} drawn feature{overlayFeatures.length !== 1 ? 's' : ''})
+                  </span>
+                )}
               </span>
             </div>
           </div>
@@ -699,6 +723,11 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
                 {clientContext.topography && (
                   <p className="text-xs mt-1 text-green-600 dark:text-green-400">
                     Try: "Where would be the best place for a pond?"
+                  </p>
+                )}
+                {overlayFeatures.length > 0 && (
+                  <p className="text-xs mt-1 text-purple-600 dark:text-purple-400">
+                    I can see {overlayFeatures.length} drawn feature{overlayFeatures.length !== 1 ? 's' : ''} on the map.
                   </p>
                 )}
               </div>

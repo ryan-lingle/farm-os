@@ -130,6 +130,7 @@ export function ChatContainer() {
               entityName: pageContext.entityName,
               entityType: pageContext.entityType,
               hasTopography: !!clientContext.topography,
+              drawnFeaturesCount: clientContext.drawnFeatures?.count,
             } : undefined}
           />
         </div>

@@ -34,8 +34,15 @@ export interface TopographyContext {
   };
 }
 
+export interface DrawnFeaturesContext {
+  features: Feature[];
+  label?: string;
+  count: number;
+}
+
 export interface ClientContext {
   topography?: TopographyContext;
+  drawnFeatures?: DrawnFeaturesContext;
   [key: string]: any;
 }
 
@@ -204,6 +211,87 @@ export function formatTopographyContextForAI(topo: TopographyContext): string {
 }
 
 /**
+ * Format drawn features context as markdown for AI consumption.
+ */
+export function formatDrawnFeaturesForAI(drawnFeatures: DrawnFeaturesContext): string {
+  const { features, label, count } = drawnFeatures;
+
+  const lines: string[] = [
+    '## Drawn Features on Map',
+    '',
+    `**Count:** ${count} feature(s)`,
+  ];
+
+  if (label) {
+    lines.push(`**Label:** ${label}`);
+  }
+
+  lines.push('');
+  lines.push('### Features');
+
+  features.forEach((feature, index) => {
+    const geom = feature.geometry;
+    const props = feature.properties || {};
+    const name = props.name || props.label || `Feature ${index + 1}`;
+
+    lines.push('');
+    lines.push(`#### ${name}`);
+    lines.push(`- **Type:** ${geom.type}`);
+
+    // Extract bounds/coordinates based on geometry type
+    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+      const coords = geom.type === 'Polygon'
+        ? (geom as Polygon).coordinates[0]
+        : (geom as MultiPolygon).coordinates.flatMap(p => p[0]);
+
+      const lngs = coords.map(c => c[0]);
+      const lats = coords.map(c => c[1]);
+
+      const bounds = {
+        west: Math.min(...lngs),
+        east: Math.max(...lngs),
+        south: Math.min(...lats),
+        north: Math.max(...lats),
+      };
+
+      // Calculate approximate area (rough estimate using bounding box)
+      const latDiff = bounds.north - bounds.south;
+      const lngDiff = bounds.east - bounds.west;
+      const avgLat = (bounds.north + bounds.south) / 2;
+      const latMeters = latDiff * 111320; // approx meters per degree latitude
+      const lngMeters = lngDiff * 111320 * Math.cos(avgLat * Math.PI / 180);
+      const approxAreaSqm = latMeters * lngMeters;
+      const approxAreaAcres = approxAreaSqm / 4047;
+
+      lines.push(`- **Bounds:** N:${bounds.north.toFixed(6)}, S:${bounds.south.toFixed(6)}, E:${bounds.east.toFixed(6)}, W:${bounds.west.toFixed(6)}`);
+      lines.push(`- **Approx area:** ${approxAreaSqm.toFixed(0)} sq m (${approxAreaAcres.toFixed(2)} acres)`);
+
+      // Include actual coordinates for precise analysis
+      lines.push(`- **Coordinates:** ${JSON.stringify(coords.slice(0, 5))}${coords.length > 5 ? '...' : ''}`);
+    } else if (geom.type === 'Point') {
+      const coords = (geom as Point).coordinates;
+      lines.push(`- **Coordinates:** [${coords[0].toFixed(6)}, ${coords[1].toFixed(6)}]`);
+    } else if (geom.type === 'LineString') {
+      const coords = (geom as LineString).coordinates;
+      lines.push(`- **Points:** ${coords.length}`);
+      lines.push(`- **Start:** [${coords[0][0].toFixed(6)}, ${coords[0][1].toFixed(6)}]`);
+      lines.push(`- **End:** [${coords[coords.length - 1][0].toFixed(6)}, ${coords[coords.length - 1][1].toFixed(6)}]`);
+    }
+
+    // Include any custom properties
+    const customProps = Object.entries(props).filter(([key]) => !['name', 'label'].includes(key));
+    if (customProps.length > 0) {
+      lines.push(`- **Properties:** ${JSON.stringify(Object.fromEntries(customProps))}`);
+    }
+  });
+
+  lines.push('');
+  lines.push('*These are features currently drawn/suggested on the map. You can reference them in your analysis.*');
+
+  return lines.join('\n');
+}
+
+/**
  * Format all client context for AI consumption.
  */
 export function formatClientContextForAI(context: ClientContext): string | null {
@@ -213,7 +301,9 @@ export function formatClientContextForAI(context: ClientContext): string | null 
     parts.push(formatTopographyContextForAI(context.topography));
   }
 
-  // Add more context types here as needed
+  if (context.drawnFeatures && context.drawnFeatures.count > 0) {
+    parts.push(formatDrawnFeaturesForAI(context.drawnFeatures));
+  }
 
   return parts.length > 0 ? parts.join('\n\n---\n\n') : null;
 }

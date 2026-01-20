@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback, DragEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, X, Upload, Expand, Info, Mountain } from 'lucide-react';
+import { Loader2, X, Upload, Expand, Info, Mountain, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,7 @@ interface PageContextInfo {
   entityName: string | null;
   entityType: string | null;
   hasTopography?: boolean;
+  drawnFeaturesCount?: number;
 }
 
 interface ChatPanelProps {
@@ -158,6 +159,12 @@ export function ChatPanel({
                   Topography
                 </Badge>
               )}
+              {pageContext.drawnFeaturesCount && pageContext.drawnFeaturesCount > 0 && (
+                <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700">
+                  <Pencil className="h-3 w-3 mr-1" />
+                  {pageContext.drawnFeaturesCount} Drawn
+                </Badge>
+              )}
             </span>
           </div>
         </div>
@@ -180,6 +187,11 @@ export function ChatPanel({
                 {pageContext.hasTopography && (
                   <p className="text-xs mt-1 text-green-600 dark:text-green-400">
                     Try: "Where would be the best place for a pond?"
+                  </p>
+                )}
+                {pageContext.drawnFeaturesCount && pageContext.drawnFeaturesCount > 0 && (
+                  <p className="text-xs mt-1 text-purple-600 dark:text-purple-400">
+                    I can see {pageContext.drawnFeaturesCount} drawn feature{pageContext.drawnFeaturesCount !== 1 ? 's' : ''} on the map.
                   </p>
                 )}
               </>
