@@ -5,7 +5,7 @@ import mlcontour from 'maplibre-contour';
 import type { Feature, FeatureCollection, Polygon, MultiPolygon, Point, LineString } from 'geojson';
 import { Location } from '@/hooks/useLocations';
 import { Button } from '@/components/ui/button';
-import { Layers, Mountain, Maximize2, Trash2, Sparkles, MessageCircle, X, Loader2 } from 'lucide-react';
+import { Layers, Mountain, Maximize2, Trash2, Sparkles, MessageCircle, X, Loader2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatCommands, useClientContext } from '@/hooks/useChatBridge';
@@ -39,6 +39,11 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
   const [showFullscreenChat, setShowFullscreenChat] = useState(false);
   const [fullscreenConversationId, setFullscreenConversationId] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Drag and drop state for fullscreen chat
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
+  const dragCounterRef = useRef(0);
 
   // Conversation management for fullscreen chat
   const createConversation = useCreateConversation();
@@ -118,6 +123,51 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [messages, isChatLoading]);
+
+  // Drag and drop handlers for fullscreen chat
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingImage(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+
+    if (dragCounterRef.current === 0) {
+      setIsDraggingImage(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+    dragCounterRef.current = 0;
+
+    const files = Array.from(e.dataTransfer.files).filter(file =>
+      file.type.startsWith('image/')
+    );
+
+    if (files.length > 0) {
+      setDroppedFiles(files);
+    }
+  }, []);
+
+  const handleExternalImagesProcessed = useCallback(() => {
+    setDroppedFiles([]);
+  }, []);
 
   // Parse geometry from location
   const getGeometry = () => {
@@ -671,7 +721,13 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
 
       {/* Fullscreen Chat Panel */}
       {isFullscreen && showFullscreenChat && (
-        <div className="absolute top-3 right-3 bottom-3 w-[400px] z-20 flex flex-col bg-background border rounded-lg shadow-lg overflow-hidden">
+        <div
+          className="absolute top-3 right-3 bottom-3 w-[400px] z-20 flex flex-col bg-background border rounded-lg shadow-lg overflow-hidden relative"
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
           {/* Chat Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
             <div className="flex items-center gap-2">
@@ -758,7 +814,19 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
           <ChatInput
             onSend={sendFullscreenMessage}
             disabled={isChatLoading}
+            externalImages={droppedFiles}
+            onExternalImagesProcessed={handleExternalImagesProcessed}
           />
+
+          {/* Drop overlay */}
+          {isDraggingImage && (
+            <div className="absolute inset-0 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center z-50">
+              <div className="flex flex-col items-center gap-2 text-primary">
+                <Upload className="h-8 w-8" />
+                <span className="font-medium">Drop images here</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
