@@ -722,7 +722,7 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
       {/* Fullscreen Chat Panel */}
       {isFullscreen && showFullscreenChat && (
         <div
-          className="absolute top-3 right-3 bottom-3 w-[400px] z-20 flex flex-col bg-background border rounded-lg shadow-lg overflow-hidden relative"
+          className="absolute top-3 right-3 bottom-3 w-[400px] z-20 flex flex-col bg-background border rounded-lg shadow-lg overflow-hidden"
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
