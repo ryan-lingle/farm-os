@@ -1,15 +1,23 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mlcontour from 'maplibre-contour';
 import type { Feature, FeatureCollection, Polygon, MultiPolygon, Point, LineString } from 'geojson';
 import { Location } from '@/hooks/useLocations';
 import { Button } from '@/components/ui/button';
-import { Layers, Mountain, Maximize2, Trash2, Sparkles } from 'lucide-react';
+import { Layers, Mountain, Maximize2, Trash2, Sparkles, MessageCircle, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useChatCommands } from '@/hooks/useChatBridge';
+import { useChatCommands, useClientContext } from '@/hooks/useChatBridge';
 import type { ChatCommand } from '@/lib/chat-bridge';
+import { useChat } from '@/hooks/useChat';
+import { useCreateConversation, useUpdateConversation } from '@/hooks/useConversations';
+import { formatClientContextForAI, formatLocationContextForAI } from '@/lib/chat-bridge';
+import { ChatMessage } from '@/components/chat/ChatMessage';
+import { ChatInput } from '@/components/chat/ChatInput';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import type { ChatContext } from '@/lib/chat-api';
+import type { ChatImage } from '@/types/chat';
 
 interface LocationDetailMapProps {
   location: Location;
@@ -17,6 +25,7 @@ interface LocationDetailMapProps {
 }
 
 export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, className }) => {
+  const fullscreenContainer = useRef<HTMLDivElement>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const demSourceRef = useRef<any>(null);
@@ -26,6 +35,88 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [overlayFeatures, setOverlayFeatures] = useState<Feature[]>([]);
   const [overlayLabel, setOverlayLabel] = useState<string | null>(null);
+  const [showFullscreenChat, setShowFullscreenChat] = useState(false);
+  const [fullscreenConversationId, setFullscreenConversationId] = useState<string | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Conversation management for fullscreen chat
+  const createConversation = useCreateConversation();
+  const updateConversation = useUpdateConversation();
+
+  // Get client-side context (topography, etc.) from ChatBridge
+  const clientContext = useClientContext();
+
+  // Build chat context for the current location
+  const chatContext = useMemo((): ChatContext | undefined => {
+    // Format location as markdown for AI
+    const locationMarkdown = formatLocationContextForAI(location);
+    const clientContextStr = formatClientContextForAI(clientContext);
+
+    let data = locationMarkdown;
+    if (clientContextStr) {
+      data += '\n\n' + clientContextStr;
+    }
+
+    return {
+      type: 'location',
+      id: String(location.id),
+      data,
+    };
+  }, [location, clientContext]);
+
+  // Chat hook for fullscreen mode
+  const {
+    messages,
+    isLoading: isChatLoading,
+    error: chatError,
+    sendMessage: originalSendMessage,
+    clearMessages,
+    setConversationId,
+  } = useChat({
+    conversationId: fullscreenConversationId || undefined,
+    context: chatContext,
+  });
+
+  // Generate title from first message
+  const generateTitle = (message: string): string => {
+    const cleaned = message.trim().replace(/\s+/g, ' ');
+    if (cleaned.length <= 40) return cleaned;
+    const truncated = cleaned.slice(0, 40);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return lastSpace > 20 ? truncated.slice(0, lastSpace) + '...' : truncated + '...';
+  };
+
+  // Ensure conversation exists for fullscreen chat
+  const ensureFullscreenConversation = useCallback(async () => {
+    if (fullscreenConversationId) return fullscreenConversationId;
+
+    const conv = await createConversation.mutateAsync({
+      title: 'New Chat',
+    });
+    setFullscreenConversationId(conv.id);
+    setConversationId(conv.id);
+    return conv.id;
+  }, [fullscreenConversationId, createConversation, setConversationId]);
+
+  // Send message handler for fullscreen chat
+  const sendFullscreenMessage = useCallback(async (message: string, images?: ChatImage[]) => {
+    const convId = await ensureFullscreenConversation();
+
+    const isFirstMessage = messages.length === 0;
+    if (isFirstMessage && message.trim()) {
+      const title = generateTitle(message);
+      updateConversation.mutate({ id: convId, updates: { title } });
+    }
+
+    return originalSendMessage(message, images);
+  }, [ensureFullscreenConversation, originalSendMessage, messages.length, updateConversation]);
+
+  // Auto-scroll chat when new messages arrive
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [messages, isChatLoading]);
 
   // Parse geometry from location
   const getGeometry = () => {
@@ -397,11 +488,11 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
 
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
-    if (!mapContainer.current) return;
+    if (!fullscreenContainer.current) return;
 
     if (!isFullscreen) {
-      if (mapContainer.current.requestFullscreen) {
-        mapContainer.current.requestFullscreen();
+      if (fullscreenContainer.current.requestFullscreen) {
+        fullscreenContainer.current.requestFullscreen();
       }
     } else {
       if (document.exitFullscreen) {
@@ -434,8 +525,8 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
   }
 
   return (
-    <div className={cn("relative rounded-lg overflow-hidden", className)}>
-      <div ref={mapContainer} className="w-full h-[400px]" />
+    <div ref={fullscreenContainer} className={cn("relative rounded-lg overflow-hidden", isFullscreen && "bg-black", className)}>
+      <div ref={mapContainer} className={cn("w-full", isFullscreen ? "h-full" : "h-[400px]")} />
 
       {/* Map Controls */}
       <div className="absolute top-3 left-3 z-10 flex gap-2">
@@ -532,6 +623,113 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
               <span className="text-white/80">{overlayFeatures.length} feature{overlayFeatures.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Fullscreen Chat Button */}
+      {isFullscreen && !showFullscreenChat && (
+        <div className="absolute top-3 right-3 z-20">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowFullscreenChat(true)}
+                  className="bg-white/90 backdrop-blur border shadow-md hover:bg-white"
+                >
+                  <MessageCircle className="h-4 w-4 mr-1" />
+                  Chat
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Open Farm Assistant</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
+
+      {/* Fullscreen Chat Panel */}
+      {isFullscreen && showFullscreenChat && (
+        <div className="absolute top-3 right-3 bottom-3 w-[400px] z-20 flex flex-col bg-background border rounded-lg shadow-lg overflow-hidden">
+          {/* Chat Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              <h3 className="font-semibold text-sm">Farm Assistant</h3>
+              {isChatLoading && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowFullscreenChat(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Context indicator */}
+          <div className="px-4 py-2 border-b bg-blue-50 dark:bg-blue-950/30">
+            <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
+              <span>
+                Chatting about <span className="font-medium">{location.name}</span>
+                {clientContext.topography && (
+                  <span className="ml-1 text-green-600 dark:text-green-400">(with topography data)</span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <ScrollArea className="flex-1 p-4" ref={chatScrollRef}>
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                <p className="text-sm">
+                  Ask about <span className="font-medium text-foreground">{location.name}</span>
+                </p>
+                <p className="text-xs mt-2">
+                  {clientContext.topography
+                    ? 'I have elevation data and can suggest pond locations, analyze terrain, etc.'
+                    : 'I can help with location-related tasks.'}
+                </p>
+                {clientContext.topography && (
+                  <p className="text-xs mt-1 text-green-600 dark:text-green-400">
+                    Try: "Where would be the best place for a pond?"
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {messages.map((message, index) => (
+                  <ChatMessage key={index} message={message} />
+                ))}
+                {isChatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted text-muted-foreground rounded-lg px-4 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+
+          {/* Error message */}
+          {chatError && (
+            <div className="px-4 py-2 bg-destructive/10 text-destructive text-sm">
+              {chatError}
+            </div>
+          )}
+
+          {/* Chat Input */}
+          <ChatInput
+            onSend={sendFullscreenMessage}
+            disabled={isChatLoading}
+          />
         </div>
       )}
     </div>

@@ -217,3 +217,68 @@ export function formatClientContextForAI(context: ClientContext): string | null 
 
   return parts.length > 0 ? parts.join('\n\n---\n\n') : null;
 }
+
+/**
+ * Format location data as markdown for AI consumption.
+ */
+export function formatLocationContextForAI(location: {
+  id: number;
+  name: string;
+  notes?: string;
+  parent_id?: number | null;
+  geometry?: string | object | null;
+  asset_count?: number;
+}): string {
+  const lines: string[] = [
+    '## Location Details',
+    '',
+    `**Name:** ${location.name}`,
+    `**ID:** ${location.id}`,
+  ];
+
+  if (location.notes) {
+    lines.push(`**Notes:** ${location.notes}`);
+  }
+
+  if (location.asset_count !== undefined) {
+    lines.push(`**Assets at location:** ${location.asset_count}`);
+  }
+
+  if (location.geometry) {
+    const geom = typeof location.geometry === 'string'
+      ? JSON.parse(location.geometry)
+      : location.geometry;
+
+    lines.push('');
+    lines.push('### Geometry');
+    lines.push(`**Type:** ${geom.type}`);
+
+    // Extract bounds from geometry
+    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+      const coords = geom.type === 'Polygon'
+        ? geom.coordinates[0]
+        : geom.coordinates.flatMap((p: number[][][]) => p[0]);
+
+      const lngs = coords.map((c: number[]) => c[0]);
+      const lats = coords.map((c: number[]) => c[1]);
+
+      const bounds = {
+        west: Math.min(...lngs),
+        east: Math.max(...lngs),
+        south: Math.min(...lats),
+        north: Math.max(...lats),
+      };
+
+      lines.push('');
+      lines.push('**Bounds:**');
+      lines.push(`- North: ${bounds.north.toFixed(6)}`);
+      lines.push(`- South: ${bounds.south.toFixed(6)}`);
+      lines.push(`- East: ${bounds.east.toFixed(6)}`);
+      lines.push(`- West: ${bounds.west.toFixed(6)}`);
+    } else if (geom.type === 'Point') {
+      lines.push(`**Coordinates:** [${geom.coordinates[0].toFixed(6)}, ${geom.coordinates[1].toFixed(6)}]`);
+    }
+  }
+
+  return lines.join('\n');
+}
