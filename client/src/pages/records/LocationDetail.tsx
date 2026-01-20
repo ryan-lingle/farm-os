@@ -23,6 +23,8 @@ import { Badge } from '@/components/ui/badge';
 import { useLocation as useLocationData, useLocations, useChildLocations } from '@/hooks/useLocations';
 import { useAssetsAtLocation } from '@/hooks/useAssets';
 import { useLocationClimate, getCenterFromGeometry } from '@/hooks/useLocationClimate';
+import { useTopographyContext } from '@/hooks/useTopographyContext';
+import { useAutoInjectContext } from '@/hooks/useChatBridge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BackReferences } from '@/components/BackReferences';
 import { LocationDetailMap } from '@/components/LocationDetailMap';
@@ -55,6 +57,10 @@ export const LocationDetail: React.FC = () => {
     center ? center[0] : null,
     center ? center[1] : null
   );
+
+  // Fetch and inject topography data for chat context
+  const { topography } = useTopographyContext(location?.geometry);
+  useAutoInjectContext('topography', topography);
 
   if (!id) {
     return (

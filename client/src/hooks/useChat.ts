@@ -8,6 +8,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { sendChatMessage, ChatContext } from '@/lib/chat-api';
 import { conversationsApi } from '@/lib/api';
+import { ChatBridge } from '@/lib/chat-bridge';
 import type { ChatMessage, ChatImage, ToolCall } from '@/types/chat';
 
 interface UseChatOptions {
@@ -124,6 +125,8 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
       // If there were tool calls, invalidate relevant queries to refresh data
       if (response.tool_calls && response.tool_calls.length > 0) {
         invalidateQueriesForToolCalls(response.tool_calls, queryClient);
+        // Handle client-side commands like draw_on_map
+        handleClientSideCommands(response.tool_calls);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
@@ -165,6 +168,29 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     clearError,
     setConversationId,
   };
+}
+
+/**
+ * Handle client-side commands from tool calls.
+ * These are tools that don't execute on the server but trigger UI actions.
+ */
+function handleClientSideCommands(toolCalls: ToolCall[]) {
+  for (const toolCall of toolCalls) {
+    if (toolCall.name === 'draw_on_map') {
+      // Arguments are already parsed as an object, not a JSON string
+      const args = toolCall.arguments as { features?: unknown[]; label?: string };
+      if (args.features && Array.isArray(args.features)) {
+        console.log('[useChat] Executing draw_on_map with', args.features.length, 'features');
+        ChatBridge.executeCommand({
+          type: 'draw',
+          features: args.features,
+          label: args.label || 'AI Suggestions',
+        });
+      } else {
+        console.warn('[useChat] draw_on_map called without features:', args);
+      }
+    }
+  }
 }
 
 /**

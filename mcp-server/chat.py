@@ -151,7 +151,47 @@ TOOL_NAMES = [
     "get_tasks_blocked_by",
     "add_related_task",
     "mark_task_duplicate",
+    # Client-side commands (not executed on server, passed to frontend)
+    "draw_on_map",
 ]
+
+
+def draw_on_map(features: list, label: str = "AI Suggestions") -> dict:
+    """Draw GeoJSON features on the map as temporary suggestions.
+
+    Use this tool when you want to visualize locations, areas, or points on the map.
+    The features will appear as a blue dashed overlay that the user can review.
+
+    IMPORTANT: The 'features' parameter is REQUIRED. You must provide GeoJSON Feature objects.
+
+    Args:
+        features: REQUIRED. Array of GeoJSON Feature objects. Each feature must have type="Feature", geometry with coordinates, and properties. Example: [{"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[-86.574, 39.806], [-86.573, 39.806], [-86.573, 39.805], [-86.574, 39.805], [-86.574, 39.806]]]}, "properties": {"name": "Pond 1"}}]
+        label: A descriptive label for what is being drawn (e.g., "Suggested pond locations")
+
+    Returns:
+        Confirmation message (actual drawing happens on the client side)
+
+    Example:
+        draw_on_map(
+            features=[{
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[[-86.574, 39.806], [-86.573, 39.806], [-86.573, 39.805], [-86.574, 39.805], [-86.574, 39.806]]]
+                },
+                "properties": {"name": "Pond 1"}
+            }],
+            label="Suggested keyline pond locations"
+        )
+    """
+    # This tool doesn't execute anything server-side.
+    # The tool call is passed to the frontend which handles the drawing.
+    return {
+        "status": "drawing_requested",
+        "feature_count": len(features),
+        "label": label,
+        "message": f"Drawing {len(features)} feature(s) on the map: {label}"
+    }
 
 # Import the module to look up functions dynamically
 import sys
@@ -172,6 +212,24 @@ You have access to tools that allow you to:
 - Record observations and facts about assets
 - Move assets between locations
 - Get a summary of the farm
+- Draw suggestions on the map (ponds, swales, planting areas, etc.)
+
+DRAWING ON THE MAP:
+When the user asks you to "draw", "show", "suggest", "visualize", or "place" anything on the map, you MUST use the draw_on_map tool. This includes requests like:
+- "Where should I put a pond?"
+- "Draw suggested pond locations"
+- "Show me where to plant"
+- "Suggest areas for swales"
+
+You MUST provide the 'features' parameter with GeoJSON Feature objects. Use the location bounds from context to calculate coordinates within the property.
+
+Example:
+draw_on_map(
+    features=[
+        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[-86.574, 39.806], [-86.573, 39.806], [-86.573, 39.805], [-86.574, 39.805], [-86.574, 39.806]]]}, "properties": {"name": "Pond 1"}}
+    ],
+    label="Suggested Pond Locations"
+)
 
 Task Management:
 - Create, update, and complete tasks (every task belongs to a plan)

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ChatBridgeProvider } from "@/contexts/ChatBridgeContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Locations from "./pages/Locations";
@@ -39,6 +40,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ChatBridgeProvider>
         <SidebarProvider>
           <div className="min-h-screen flex w-full">
             <AppSidebar />
@@ -84,6 +86,7 @@ const App = () => (
           </div>
         </SidebarProvider>
         <ChatContainer />
+        </ChatBridgeProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

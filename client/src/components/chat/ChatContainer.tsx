@@ -6,16 +6,21 @@
  * - Starts fresh on each page refresh (no message loading)
  * - Creates a NEW conversation on first message (saved to database)
  * - Past conversations are accessible from the main /chat page
+ * - Auto-injects context from current page (detail views)
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useChat } from '@/hooks/useChat';
 import {
   useCreateConversation,
   useUpdateConversation,
 } from '@/hooks/useConversations';
+import { useCurrentPageContext } from '@/hooks/useCurrentPageContext';
+import { useClientContext } from '@/hooks/useChatBridge';
+import { formatClientContextForAI } from '@/lib/chat-bridge';
 import { ChatButton } from './ChatButton';
 import { ChatPanel } from './ChatPanel';
+import type { ChatContext } from '@/lib/chat-api';
 
 // Generate a short title from the first message (ChatGPT-style)
 function generateTitle(message: string): string {
@@ -35,7 +40,36 @@ export function ChatContainer() {
   const createConversation = useCreateConversation();
   const updateConversation = useUpdateConversation();
 
+  // Get context from current page (auto-detect detail views)
+  const pageContext = useCurrentPageContext();
+
+  // Get client-side context (topography, etc.) from ChatBridge
+  const clientContext = useClientContext();
+
+  // Merge page context with client context for AI
+  const mergedContext = useMemo((): ChatContext | undefined => {
+    // Format client context (topography, etc.) as markdown
+    const clientContextStr = formatClientContextForAI(clientContext);
+
+    // If no page context, return undefined (client context alone isn't enough)
+    if (!pageContext.context) {
+      return undefined;
+    }
+
+    // If there's no client context, just return page context as-is
+    if (!clientContextStr) {
+      return pageContext.context;
+    }
+
+    // Merge: append client context to the page context's data field
+    return {
+      ...pageContext.context,
+      data: pageContext.context.data + '\n\n' + clientContextStr,
+    };
+  }, [pageContext.context, clientContext]);
+
   // Chat hook - starts fresh, no conversation ID initially
+  // Pass merged context so AI knows what entity we're viewing + client data
   const {
     messages,
     isLoading,
@@ -44,7 +78,10 @@ export function ChatContainer() {
     clearMessages,
     clearError,
     setConversationId,
-  } = useChat({ conversationId: conversationId || undefined });
+  } = useChat({
+    conversationId: conversationId || undefined,
+    context: mergedContext,
+  });
 
   // Create a new conversation on first message
   const ensureConversation = useCallback(async () => {
@@ -89,6 +126,11 @@ export function ChatContainer() {
             onSend={sendMessage}
             onClose={handleClose}
             onClear={clearMessages}
+            pageContext={pageContext.context ? {
+              entityName: pageContext.entityName,
+              entityType: pageContext.entityType,
+              hasTopography: !!clientContext.topography,
+            } : undefined}
           />
         </div>
       ) : (

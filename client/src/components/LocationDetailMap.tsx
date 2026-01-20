@@ -1,12 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import mlcontour from 'maplibre-contour';
+import type { Feature, FeatureCollection, Polygon, MultiPolygon, Point, LineString } from 'geojson';
 import { Location } from '@/hooks/useLocations';
 import { Button } from '@/components/ui/button';
-import { Layers, Mountain, Maximize2 } from 'lucide-react';
+import { Layers, Mountain, Maximize2, Trash2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useChatCommands } from '@/hooks/useChatBridge';
+import type { ChatCommand } from '@/lib/chat-bridge';
 
 interface LocationDetailMapProps {
   location: Location;
@@ -21,6 +24,8 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
 
   const [showTopography, setShowTopography] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [overlayFeatures, setOverlayFeatures] = useState<Feature[]>([]);
+  const [overlayLabel, setOverlayLabel] = useState<string | null>(null);
 
   // Parse geometry from location
   const getGeometry = () => {
@@ -73,6 +78,26 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
 
     return null;
   };
+
+  // Handle chat commands (draw features on map)
+  const handleChatCommand = useCallback((command: ChatCommand) => {
+    if (command.type === 'draw') {
+      setOverlayFeatures(command.features);
+      setOverlayLabel(command.label || 'AI Suggestions');
+    } else if (command.type === 'clear-overlay') {
+      setOverlayFeatures([]);
+      setOverlayLabel(null);
+    }
+  }, []);
+
+  // Subscribe to chat commands
+  useChatCommands(handleChatCommand);
+
+  // Clear overlay handler
+  const clearOverlay = useCallback(() => {
+    setOverlayFeatures([]);
+    setOverlayLabel(null);
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -293,6 +318,83 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
     }
   }, [showTopography]);
 
+  // Handle overlay features (AI suggestions)
+  useEffect(() => {
+    if (!map.current) return;
+
+    const applyOverlay = () => {
+      if (!map.current) return;
+
+      const featureCollection: FeatureCollection = {
+        type: 'FeatureCollection',
+        features: overlayFeatures,
+      };
+
+      // Add or update overlay source
+      const existingSource = map.current.getSource('ai-overlay') as maplibregl.GeoJSONSource;
+      if (existingSource) {
+        existingSource.setData(featureCollection);
+      } else if (overlayFeatures.length > 0) {
+        map.current.addSource('ai-overlay', {
+          type: 'geojson',
+          data: featureCollection,
+        });
+
+        // Add fill layer for polygons
+        map.current.addLayer({
+          id: 'ai-overlay-fill',
+          type: 'fill',
+          source: 'ai-overlay',
+          filter: ['any',
+            ['==', ['geometry-type'], 'Polygon'],
+            ['==', ['geometry-type'], 'MultiPolygon'],
+          ],
+          paint: {
+            'fill-color': '#3b82f6',
+            'fill-opacity': 0.25,
+          },
+        });
+
+        // Add outline layer for polygons
+        map.current.addLayer({
+          id: 'ai-overlay-outline',
+          type: 'line',
+          source: 'ai-overlay',
+          filter: ['any',
+            ['==', ['geometry-type'], 'Polygon'],
+            ['==', ['geometry-type'], 'MultiPolygon'],
+            ['==', ['geometry-type'], 'LineString'],
+          ],
+          paint: {
+            'line-color': '#1d4ed8',
+            'line-width': 3,
+            'line-dasharray': [4, 2],
+          },
+        });
+
+        // Add circle layer for points
+        map.current.addLayer({
+          id: 'ai-overlay-points',
+          type: 'circle',
+          source: 'ai-overlay',
+          filter: ['==', ['geometry-type'], 'Point'],
+          paint: {
+            'circle-color': '#3b82f6',
+            'circle-radius': 8,
+            'circle-stroke-color': '#1d4ed8',
+            'circle-stroke-width': 2,
+          },
+        });
+      }
+    };
+
+    if (map.current.isStyleLoaded()) {
+      applyOverlay();
+    } else {
+      map.current.once('load', applyOverlay);
+    }
+  }, [overlayFeatures]);
+
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
     if (!mapContainer.current) return;
@@ -376,6 +478,28 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        {/* Clear AI Suggestions button */}
+        {overlayFeatures.length > 0 && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={clearOverlay}
+                  className="bg-blue-500/90 text-white backdrop-blur border border-blue-600 shadow-md hover:bg-blue-600"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Clear AI suggestions</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* Topography Legend */}
@@ -390,6 +514,22 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
             <div className="flex items-center gap-2">
               <div className="w-4 h-1 bg-[#ff6600]"></div>
               <span className="text-white/80">10m index lines</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Suggestions Legend */}
+      {overlayFeatures.length > 0 && (
+        <div className="absolute bottom-3 right-3 z-10 bg-blue-900/80 backdrop-blur rounded-md px-3 py-2 text-xs shadow-md text-white">
+          <div className="font-medium mb-1 flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />
+            {overlayLabel || 'AI Suggestions'}
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-3 bg-blue-500/50 border border-dashed border-blue-600"></div>
+              <span className="text-white/80">{overlayFeatures.length} feature{overlayFeatures.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
         </div>

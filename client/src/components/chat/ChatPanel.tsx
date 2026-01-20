@@ -6,12 +6,19 @@
 
 import { useState, useEffect, useRef, useCallback, DragEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, X, Upload, Expand } from 'lucide-react';
+import { Loader2, X, Upload, Expand, Info, Mountain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import type { ChatMessage as ChatMessageType, ChatImage } from '@/types/chat';
+
+interface PageContextInfo {
+  entityName: string | null;
+  entityType: string | null;
+  hasTopography?: boolean;
+}
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
@@ -20,6 +27,7 @@ interface ChatPanelProps {
   onSend: (message: string, images?: ChatImage[]) => void;
   onClose: () => void;
   onClear: () => void;
+  pageContext?: PageContextInfo;
 }
 
 export function ChatPanel({
@@ -29,6 +37,7 @@ export function ChatPanel({
   onSend,
   onClose,
   onClear,
+  pageContext,
 }: ChatPanelProps) {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,14 +137,60 @@ export function ChatPanel({
         </div>
       </div>
 
+      {/* Context indicator */}
+      {pageContext?.entityName && (
+        <div className="px-4 py-2 border-b bg-blue-50 dark:bg-blue-950/30">
+          <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
+            <Info className="h-3.5 w-3.5" />
+            <span className="flex items-center gap-2 flex-wrap">
+              <span>
+                Chatting about{' '}
+                <span className="font-medium">{pageContext.entityName}</span>
+              </span>
+              {pageContext.entityType && (
+                <Badge variant="secondary" className="text-xs capitalize">
+                  {pageContext.entityType}
+                </Badge>
+              )}
+              {pageContext.hasTopography && (
+                <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
+                  <Mountain className="h-3 w-3 mr-1" />
+                  Topography
+                </Badge>
+              )}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-            <p className="text-sm">Ask me anything about your farm!</p>
-            <p className="text-xs mt-2">
-              I can help you view assets, create logs, move animals, and more.
-            </p>
+            {pageContext?.entityName ? (
+              <>
+                <p className="text-sm">
+                  Ask me about <span className="font-medium text-foreground">{pageContext.entityName}</span>
+                </p>
+                <p className="text-xs mt-2">
+                  I have context about this {pageContext.entityType || 'item'}
+                  {pageContext.hasTopography && ' including elevation and slope data'}
+                  {' '}and can help with related tasks.
+                </p>
+                {pageContext.hasTopography && (
+                  <p className="text-xs mt-1 text-green-600 dark:text-green-400">
+                    Try: "Where would be the best place for a pond?"
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-sm">Ask me anything about your farm!</p>
+                <p className="text-xs mt-2">
+                  I can help you view assets, create logs, move animals, and more.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
