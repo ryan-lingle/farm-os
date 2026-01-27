@@ -17,6 +17,7 @@ import {
   isToday,
   addMonths,
   subMonths,
+  parseISO,
 } from 'date-fns';
 import { Task } from '@/hooks/useTasks';
 import { usePlans, Plan } from '@/hooks/usePlans';
@@ -91,13 +92,14 @@ export function TaskCalendar({ tasks, onTaskClick, className }: TaskCalendarProp
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentDate]);
 
-  // Group tasks by date
+  // Group tasks by date (includes subtasks - any task with targetDate shows)
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
 
     tasks.forEach((task) => {
       if (task.targetDate) {
-        const dateKey = format(new Date(task.targetDate), 'yyyy-MM-dd');
+        // Use parseISO to avoid timezone issues with date-only strings
+        const dateKey = format(parseISO(task.targetDate), 'yyyy-MM-dd');
         const existing = map.get(dateKey) || [];
         existing.push(task);
         map.set(dateKey, existing);

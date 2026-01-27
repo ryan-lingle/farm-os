@@ -35,7 +35,7 @@ import {
   GripVertical,
   ExternalLink,
 } from 'lucide-react';
-import { format, isPast, isToday } from 'date-fns';
+import { format, isPast, isToday, parseISO } from 'date-fns';
 
 interface TaskListItemProps {
   task: Task;
@@ -129,8 +129,8 @@ export function TaskListItem({
   };
 
   const isCompleted = task.state === 'done' || task.state === 'cancelled';
-  const isOverdue = task.targetDate && isPast(new Date(task.targetDate)) && !isCompleted;
-  const isDueToday = task.targetDate && isToday(new Date(task.targetDate));
+  const isOverdue = task.targetDate && isPast(parseISO(task.targetDate)) && !isCompleted;
+  const isDueToday = task.targetDate && isToday(parseISO(task.targetDate));
 
   const handleDelete = () => {
     if (confirm('Are you sure you want to delete this task?')) {
@@ -239,7 +239,7 @@ export function TaskListItem({
           )}
         >
           <Calendar className="h-3 w-3" />
-          {format(new Date(task.targetDate), 'MMM d')}
+          {format(parseISO(task.targetDate), 'MMM d')}
         </div>
       )}
 

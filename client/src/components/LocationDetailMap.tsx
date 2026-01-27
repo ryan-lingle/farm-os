@@ -5,7 +5,9 @@ import mlcontour from 'maplibre-contour';
 import type { Feature, FeatureCollection, Polygon, MultiPolygon, Point, LineString } from 'geojson';
 import { Location } from '@/hooks/useLocations';
 import { Button } from '@/components/ui/button';
-import { Layers, Mountain, Maximize2, Trash2, Sparkles, MessageCircle, X, Loader2, Upload } from 'lucide-react';
+import { Layers, Mountain, Maximize2, Trash2, Sparkles, MessageCircle, X, Loader2, Upload, Pencil, Droplets } from 'lucide-react';
+import { useKeylineAnalysis } from '@/hooks/useKeylineAnalysis';
+import { useLocationClimate, getCenterFromGeometry as getClimateCenter } from '@/hooks/useLocationClimate';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatCommands, useClientContext } from '@/hooks/useChatBridge';
@@ -19,6 +21,8 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { ChatContext } from '@/lib/chat-api';
 import type { ChatImage } from '@/types/chat';
+import { useTerraDraw, type DrawingMode } from '@/hooks/useTerraDraw';
+import { DrawingToolbar, useDrawingShortcuts } from '@/components/DrawingToolbar';
 
 interface LocationDetailMapProps {
   location: Location;
@@ -33,12 +37,95 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
   const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
   const [showTopography, setShowTopography] = useState(false);
+  const [showKeylines, setShowKeylines] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [overlayFeatures, setOverlayFeatures] = useState<Feature[]>([]);
-  const [overlayLabel, setOverlayLabel] = useState<string | null>(null);
   const [showFullscreenChat, setShowFullscreenChat] = useState(false);
   const [fullscreenConversationId, setFullscreenConversationId] = useState<string | null>(null);
+  const [showDrawingToolbar, setShowDrawingToolbar] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Calculate bounds from location geometry for keyline analysis
+  const locationBounds = useMemo(() => {
+    const geometry = typeof location.geometry === 'string'
+      ? JSON.parse(location.geometry)
+      : location.geometry;
+
+    if (!geometry) return null;
+
+    let minLng = Infinity, maxLng = -Infinity;
+    let minLat = Infinity, maxLat = -Infinity;
+
+    const processCoord = (coord: [number, number]) => {
+      minLng = Math.min(minLng, coord[0]);
+      maxLng = Math.max(maxLng, coord[0]);
+      minLat = Math.min(minLat, coord[1]);
+      maxLat = Math.max(maxLat, coord[1]);
+    };
+
+    if (geometry.type === 'Polygon') {
+      geometry.coordinates[0].forEach(processCoord);
+    } else if (geometry.type === 'MultiPolygon') {
+      geometry.coordinates.forEach((poly: [number, number][][]) => {
+        poly[0].forEach(processCoord);
+      });
+    } else if (geometry.type === 'Point') {
+      // For points, create a small bounds around it
+      const [lng, lat] = geometry.coordinates;
+      const buffer = 0.002; // ~200m buffer
+      return { north: lat + buffer, south: lat - buffer, east: lng + buffer, west: lng - buffer };
+    }
+
+    if (minLng === Infinity) return null;
+
+    // Add a small buffer around the bounds
+    const latBuffer = (maxLat - minLat) * 0.1;
+    const lngBuffer = (maxLng - minLng) * 0.1;
+
+    return {
+      north: maxLat + latBuffer,
+      south: minLat - latBuffer,
+      east: maxLng + lngBuffer,
+      west: minLng - lngBuffer,
+    };
+  }, [location.geometry]);
+
+  // Get center for climate data
+  const locationCenter = useMemo(() => {
+    const geometry = typeof location.geometry === 'string'
+      ? JSON.parse(location.geometry)
+      : location.geometry;
+    return getClimateCenter(geometry);
+  }, [location.geometry]);
+
+  // Fetch climate data for rainfall context
+  const { data: climate } = useLocationClimate(
+    locationCenter ? locationCenter[0] : null,
+    locationCenter ? locationCenter[1] : null
+  );
+
+  // Run keyline analysis when enabled
+  const { result: keylineResult, isAnalyzing: isKeylineAnalyzing, error: keylineError } = useKeylineAnalysis({
+    bounds: locationBounds,
+    rainfallContext: climate?.rainfallContext,
+    enabled: showKeylines,
+    gridSize: 40, // Higher resolution for better analysis
+  });
+
+  // Terra Draw integration for user and AI drawing capabilities
+  const terraDraw = useTerraDraw(map.current);
+
+  // Delete selected feature callback
+  const handleDeleteSelected = useCallback(() => {
+    if (terraDraw.selectedFeatureId) {
+      terraDraw.removeFeature(terraDraw.selectedFeatureId);
+    }
+  }, [terraDraw.selectedFeatureId, terraDraw.removeFeature]);
+
+  // Setup keyboard shortcuts for drawing (only when toolbar is visible)
+  useEffect(() => {
+    if (!showDrawingToolbar) return;
+    return useDrawingShortcuts(terraDraw.setMode, terraDraw.clearFeatures, showDrawingToolbar, handleDeleteSelected);
+  }, [showDrawingToolbar, terraDraw.setMode, terraDraw.clearFeatures, handleDeleteSelected]);
 
   // Drag and drop state for fullscreen chat
   const [isDraggingImage, setIsDraggingImage] = useState(false);
@@ -223,23 +310,66 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
 
   // Handle chat commands (draw features on map)
   const handleChatCommand = useCallback((command: ChatCommand) => {
-    if (command.type === 'draw') {
-      setOverlayFeatures(command.features);
-      setOverlayLabel(command.label || 'AI Suggestions');
-    } else if (command.type === 'clear-overlay') {
-      setOverlayFeatures([]);
-      setOverlayLabel(null);
+    console.log('[LocationDetailMap] handleChatCommand received');
+    console.log('[LocationDetailMap] Command type:', command.type);
+    console.log('[LocationDetailMap] Full command:', JSON.stringify(command, null, 2));
+    console.log('[LocationDetailMap] TerraDraw isReady:', terraDraw.isReady);
+
+    switch (command.type) {
+      case 'start-drawing':
+        // AI is requesting user enter a drawing mode
+        console.log('[LocationDetailMap] Processing start-drawing, mode:', command.mode);
+        setShowDrawingToolbar(true);
+        terraDraw.setMode(command.mode);
+        break;
+
+      case 'add-feature':
+        // AI is adding a feature programmatically
+        console.log('[LocationDetailMap] Processing add-feature');
+        console.log('[LocationDetailMap] Feature to add:', JSON.stringify(command.feature, null, 2));
+        console.log('[LocationDetailMap] autoSelect:', command.autoSelect);
+        setShowDrawingToolbar(true);
+        const addedId = terraDraw.addFeature(command.feature, command.autoSelect);
+        console.log('[LocationDetailMap] TerraDraw.addFeature returned:', addedId);
+        if (addedId && command.autoSelect) {
+          console.log('[LocationDetailMap] Setting mode to select');
+          terraDraw.setMode('select');
+        } else if (!addedId) {
+          console.error('[LocationDetailMap] Failed to add feature - addFeature returned null');
+        }
+        break;
+
+      case 'select-feature':
+        terraDraw.selectFeature(command.featureId);
+        terraDraw.setMode('select');
+        break;
+
+      case 'update-feature':
+        if (command.properties) {
+          terraDraw.updateFeatureProperties(command.featureId, command.properties);
+        }
+        if (command.geometry) {
+          terraDraw.updateFeatureGeometry(command.featureId, command.geometry);
+        }
+        break;
+
+      case 'delete-feature':
+        terraDraw.removeFeature(command.featureId);
+        break;
+
+      case 'clear-features':
+        terraDraw.clearFeatures();
+        break;
+
+      case 'get-features':
+        // Return the current features via callback
+        command.callback(terraDraw.getFeatures());
+        break;
     }
-  }, []);
+  }, [terraDraw]);
 
   // Subscribe to chat commands
   useChatCommands(handleChatCommand);
-
-  // Clear overlay handler
-  const clearOverlay = useCallback(() => {
-    setOverlayFeatures([]);
-    setOverlayLabel(null);
-  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -460,90 +590,136 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
     }
   }, [showTopography]);
 
-  // Handle overlay features (AI suggestions)
+  // Handle keyline visualization
   useEffect(() => {
     if (!map.current) return;
 
-    const applyOverlay = () => {
+    const applyKeylines = () => {
       if (!map.current) return;
 
-      const featureCollection: FeatureCollection = {
-        type: 'FeatureCollection',
-        features: overlayFeatures,
-      };
+      // Remove existing keyline layers and source
+      const layersToRemove = ['keyline-lines', 'keypoint-circles', 'keypoint-labels', 'pond-site-circles', 'pond-site-labels'];
+      for (const layerId of layersToRemove) {
+        if (map.current.getLayer(layerId)) {
+          map.current.removeLayer(layerId);
+        }
+      }
+      if (map.current.getSource('keyline-data')) {
+        map.current.removeSource('keyline-data');
+      }
 
-      // Add or update overlay source
-      const existingSource = map.current.getSource('ai-overlay') as maplibregl.GeoJSONSource;
-      if (existingSource) {
-        existingSource.setData(featureCollection);
-      } else if (overlayFeatures.length > 0) {
-        map.current.addSource('ai-overlay', {
+      // Add keyline data if we have results
+      if (showKeylines && keylineResult && keylineResult.geoJson.features.length > 0) {
+        // Add GeoJSON source
+        map.current.addSource('keyline-data', {
           type: 'geojson',
-          data: featureCollection,
+          data: keylineResult.geoJson,
         });
 
-        // Add fill layer for polygons
+        // Add keyline lines (cyan dashed lines)
         map.current.addLayer({
-          id: 'ai-overlay-fill',
-          type: 'fill',
-          source: 'ai-overlay',
-          filter: ['any',
-            ['==', ['geometry-type'], 'Polygon'],
-            ['==', ['geometry-type'], 'MultiPolygon'],
-          ],
-          paint: {
-            'fill-color': '#3b82f6',
-            'fill-opacity': 0.25,
-          },
-        });
-
-        // Add outline layer for polygons
-        map.current.addLayer({
-          id: 'ai-overlay-outline',
+          id: 'keyline-lines',
           type: 'line',
-          source: 'ai-overlay',
-          filter: ['any',
-            ['==', ['geometry-type'], 'Polygon'],
-            ['==', ['geometry-type'], 'MultiPolygon'],
-            ['==', ['geometry-type'], 'LineString'],
-          ],
+          source: 'keyline-data',
+          filter: ['==', ['get', 'type'], 'keyline'],
           paint: {
-            'line-color': '#1d4ed8',
+            'line-color': '#00d4ff',
             'line-width': 3,
-            'line-dasharray': [4, 2],
+            'line-dasharray': [3, 2],
+            'line-opacity': 0.9,
           },
         });
 
-        // Add circle layer for points
+        // Add keypoint circles (yellow markers)
         map.current.addLayer({
-          id: 'ai-overlay-points',
+          id: 'keypoint-circles',
           type: 'circle',
-          source: 'ai-overlay',
-          filter: ['==', ['geometry-type'], 'Point'],
+          source: 'keyline-data',
+          filter: ['==', ['get', 'type'], 'keypoint'],
           paint: {
-            'circle-color': '#3b82f6',
             'circle-radius': 8,
-            'circle-stroke-color': '#1d4ed8',
+            'circle-color': '#ffcc00',
             'circle-stroke-width': 2,
+            'circle-stroke-color': '#000',
+            'circle-opacity': 0.9,
+          },
+        });
+
+        // Add keypoint labels
+        map.current.addLayer({
+          id: 'keypoint-labels',
+          type: 'symbol',
+          source: 'keyline-data',
+          filter: ['==', ['get', 'type'], 'keypoint'],
+          layout: {
+            'text-field': ['concat', ['to-string', ['get', 'elevation']], 'm'],
+            'text-font': ['Open Sans Bold'],
+            'text-size': 10,
+            'text-offset': [0, 1.5],
+            'text-anchor': 'top',
+          },
+          paint: {
+            'text-color': '#ffcc00',
+            'text-halo-color': '#000',
+            'text-halo-width': 1.5,
+          },
+        });
+
+        // Add pond site circles (blue markers)
+        map.current.addLayer({
+          id: 'pond-site-circles',
+          type: 'circle',
+          source: 'keyline-data',
+          filter: ['==', ['get', 'type'], 'pond-site'],
+          paint: {
+            'circle-radius': 12,
+            'circle-color': '#3b82f6',
+            'circle-stroke-width': 3,
+            'circle-stroke-color': '#fff',
+            'circle-opacity': 0.85,
+          },
+        });
+
+        // Add pond site labels
+        map.current.addLayer({
+          id: 'pond-site-labels',
+          type: 'symbol',
+          source: 'keyline-data',
+          filter: ['==', ['get', 'type'], 'pond-site'],
+          layout: {
+            'text-field': 'Pond',
+            'text-font': ['Open Sans Bold'],
+            'text-size': 9,
+            'text-offset': [0, 2],
+            'text-anchor': 'top',
+          },
+          paint: {
+            'text-color': '#3b82f6',
+            'text-halo-color': '#fff',
+            'text-halo-width': 1.5,
           },
         });
       }
     };
 
     if (map.current.isStyleLoaded()) {
-      applyOverlay();
+      applyKeylines();
     } else {
-      map.current.once('load', applyOverlay);
+      map.current.once('load', applyKeylines);
     }
-  }, [overlayFeatures]);
+  }, [showKeylines, keylineResult]);
 
   // Inject drawn features into ChatBridge context so AI can "read" them
   useEffect(() => {
-    if (overlayFeatures.length > 0) {
+    const terraFeatures = terraDraw.features || [];
+
+    if (terraFeatures.length > 0) {
       ChatBridge.injectContext('drawnFeatures', {
-        features: overlayFeatures,
-        label: overlayLabel || 'AI Suggestions',
-        count: overlayFeatures.length,
+        features: terraFeatures,
+        label: 'Drawn Features',
+        count: terraFeatures.length,
+        selectedFeatureId: terraDraw.selectedFeatureId,
+        mode: terraDraw.mode,
       });
     } else {
       ChatBridge.removeContext('drawnFeatures');
@@ -553,7 +729,7 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
     return () => {
       ChatBridge.removeContext('drawnFeatures');
     };
-  }, [overlayFeatures, overlayLabel]);
+  }, [terraDraw.features, terraDraw.selectedFeatureId, terraDraw.mode]);
 
   // Handle fullscreen toggle
   const toggleFullscreen = () => {
@@ -627,6 +803,54 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
               <Button
                 variant="secondary"
                 size="sm"
+                onClick={() => setShowKeylines(!showKeylines)}
+                className={cn(
+                  "bg-white/90 backdrop-blur border shadow-md hover:bg-white",
+                  showKeylines && "bg-cyan-600 text-white hover:bg-cyan-700"
+                )}
+                disabled={isKeylineAnalyzing}
+              >
+                {isKeylineAnalyzing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Droplets className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{showKeylines ? 'Hide Keylines' : 'Show Keylines'}</p>
+              {isKeylineAnalyzing && <p className="text-xs">Analyzing terrain...</p>}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowDrawingToolbar(!showDrawingToolbar)}
+                className={cn(
+                  "bg-white/90 backdrop-blur border shadow-md hover:bg-white",
+                  showDrawingToolbar && "bg-primary text-primary-foreground hover:bg-primary"
+                )}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{showDrawingToolbar ? 'Hide Drawing Tools' : 'Show Drawing Tools'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={toggleFullscreen}
                 className="bg-white/90 backdrop-blur border shadow-md hover:bg-white"
               >
@@ -638,29 +862,19 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-
-        {/* Clear AI Suggestions button */}
-        {overlayFeatures.length > 0 && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={clearOverlay}
-                  className="bg-blue-500/90 text-white backdrop-blur border border-blue-600 shadow-md hover:bg-blue-600"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Clear
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Clear AI suggestions</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
       </div>
+
+      {/* Drawing Toolbar */}
+      {showDrawingToolbar && terraDraw.isReady && (
+        <div className="absolute top-16 left-3 z-10">
+          <DrawingToolbar
+            mode={terraDraw.mode}
+            featureCount={terraDraw.features.length}
+            onModeChange={terraDraw.setMode}
+            onClear={terraDraw.clearFeatures}
+          />
+        </div>
+      )}
 
       {/* Topography Legend */}
       {showTopography && (
@@ -679,18 +893,81 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
         </div>
       )}
 
-      {/* AI Suggestions Legend */}
-      {overlayFeatures.length > 0 && (
-        <div className="absolute bottom-3 right-3 z-10 bg-blue-900/80 backdrop-blur rounded-md px-3 py-2 text-xs shadow-md text-white">
+      {/* Keyline Legend */}
+      {showKeylines && keylineResult && (
+        <div className={cn(
+          "absolute z-10 bg-black/70 backdrop-blur rounded-md px-3 py-2 text-xs shadow-md text-white",
+          showTopography ? "bottom-24 left-3" : "bottom-3 left-3"
+        )}>
+          <div className="font-medium mb-1.5 flex items-center gap-1.5">
+            <Droplets className="h-3.5 w-3.5 text-cyan-400" />
+            Keyline Analysis
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 bg-[#00d4ff]" style={{ borderStyle: 'dashed', borderWidth: '2px', borderColor: '#00d4ff' }}></div>
+              <span className="text-white/80">Keylines ({keylineResult.stats.keylinesGenerated})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#ffcc00] border border-black"></div>
+              <span className="text-white/80">Keypoints ({keylineResult.stats.keypointsFound})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded-full bg-[#3b82f6] border-2 border-white"></div>
+              <span className="text-white/80">Pond Sites ({keylineResult.stats.pondSitesIdentified})</span>
+            </div>
+            <div className="text-white/60 mt-1 pt-1 border-t border-white/20">
+              <div>Avg slope: {keylineResult.stats.averageSlope}%</div>
+              <div>Facing: {keylineResult.stats.dominantAspect}</div>
+              {climate?.rainfallContext && (
+                <div className="text-cyan-300">
+                  Spacing: {climate.rainfallContext.waterStrategy.keylineSpacing}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyline Error */}
+      {showKeylines && keylineError && (
+        <div className={cn(
+          "absolute z-10 bg-red-900/80 backdrop-blur rounded-md px-3 py-2 text-xs shadow-md text-white",
+          showTopography ? "bottom-24 left-3" : "bottom-3 left-3"
+        )}>
+          <div className="font-medium">Keyline Analysis Error</div>
+          <div className="text-white/80">{keylineError}</div>
+        </div>
+      )}
+
+      {/* Keyline Loading */}
+      {showKeylines && isKeylineAnalyzing && (
+        <div className={cn(
+          "absolute z-10 bg-cyan-900/80 backdrop-blur rounded-md px-3 py-2 text-xs shadow-md text-white",
+          showTopography ? "bottom-24 left-3" : "bottom-3 left-3"
+        )}>
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>Analyzing terrain for keylines...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Drawing Legend (Terra Draw features) */}
+      {terraDraw.features.length > 0 && (
+        <div className="absolute bottom-3 right-3 z-10 bg-purple-900/80 backdrop-blur rounded-md px-3 py-2 text-xs shadow-md text-white">
           <div className="font-medium mb-1 flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            {overlayLabel || 'AI Suggestions'}
+            <Pencil className="h-3 w-3" />
+            Drawn Features
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-3 bg-blue-500/50 border border-dashed border-blue-600"></div>
-              <span className="text-white/80">{overlayFeatures.length} feature{overlayFeatures.length !== 1 ? 's' : ''}</span>
+              <div className="w-4 h-3 bg-purple-500/50 border border-purple-600 rounded"></div>
+              <span className="text-white/80">{terraDraw.features.length} feature{terraDraw.features.length !== 1 ? 's' : ''}</span>
             </div>
+            {terraDraw.selectedFeatureId && (
+              <span className="text-purple-300">1 selected</span>
+            )}
           </div>
         </div>
       )}
@@ -755,9 +1032,9 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
                 {clientContext.topography && (
                   <span className="ml-1 text-green-600 dark:text-green-400">(with topography data)</span>
                 )}
-                {overlayFeatures.length > 0 && (
+                {terraDraw.features.length > 0 && (
                   <span className="ml-1 text-purple-600 dark:text-purple-400">
-                    ({overlayFeatures.length} drawn feature{overlayFeatures.length !== 1 ? 's' : ''})
+                    ({terraDraw.features.length} drawn feature{terraDraw.features.length !== 1 ? 's' : ''})
                   </span>
                 )}
               </span>
@@ -781,9 +1058,14 @@ export const LocationDetailMap: React.FC<LocationDetailMapProps> = ({ location, 
                     Try: "Where would be the best place for a pond?"
                   </p>
                 )}
-                {overlayFeatures.length > 0 && (
+                {terraDraw.features.length > 0 && (
                   <p className="text-xs mt-1 text-purple-600 dark:text-purple-400">
-                    I can see {overlayFeatures.length} drawn feature{overlayFeatures.length !== 1 ? 's' : ''} on the map.
+                    I can see {terraDraw.features.length} drawn feature{terraDraw.features.length !== 1 ? 's' : ''} on the map.
+                  </p>
+                )}
+                {showDrawingToolbar && (
+                  <p className="text-xs mt-1 text-blue-600 dark:text-blue-400">
+                    Draw on the map and ask me to analyze your features!
                   </p>
                 )}
               </div>

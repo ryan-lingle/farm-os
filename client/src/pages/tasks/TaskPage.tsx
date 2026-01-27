@@ -11,7 +11,7 @@ import { useCycles } from '@/hooks/useCycles';
 import { useTags } from '@/hooks/useTags';
 import { useCreateConversation } from '@/hooks/useConversations';
 import { RichTextEditor } from '@/components/editor/RichTextEditor';
-import { TaskList, TaskQuickCreate } from '@/components/tasks';
+import { TaskList, TaskQuickCreate, TaskCalendar } from '@/components/tasks';
 import { TagInput } from '@/components/tags';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ import {
   Clock,
   ExternalLink,
   FolderKanban,
+  LayoutList,
   MessageSquare,
   MoreHorizontal,
   Trash2,
@@ -121,6 +122,7 @@ export default function TaskPage() {
 
   // Subtask view state
   const [subtaskView, setSubtaskView] = useState<'all' | 'active' | 'completed'>('all');
+  const [subtaskDisplayMode, setSubtaskDisplayMode] = useState<'list' | 'calendar'>('list');
 
   // Filter subtasks based on view
   const filteredSubtasks = useMemo(() => {
@@ -546,22 +548,48 @@ export default function TaskPage() {
                 )}
               </h3>
 
-              {/* View tabs */}
-              {subtaskCounts.all > 0 && (
-                <Tabs value={subtaskView} onValueChange={(v) => setSubtaskView(v as 'all' | 'active' | 'completed')}>
-                  <TabsList className="h-8">
-                    <TabsTrigger value="all" className="text-xs px-3 h-6">
-                      All ({subtaskCounts.all})
-                    </TabsTrigger>
-                    <TabsTrigger value="active" className="text-xs px-3 h-6">
-                      Active ({subtaskCounts.active})
-                    </TabsTrigger>
-                    <TabsTrigger value="completed" className="text-xs px-3 h-6">
-                      Completed ({subtaskCounts.completed})
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              )}
+              <div className="flex items-center gap-2">
+                {/* View mode toggle (list/calendar) */}
+                {subtaskCounts.all > 0 && (
+                  <div className="flex items-center border rounded-lg p-0.5">
+                    <Button
+                      variant={subtaskDisplayMode === 'list' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-6 px-2"
+                      onClick={() => setSubtaskDisplayMode('list')}
+                      title="List view"
+                    >
+                      <LayoutList className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant={subtaskDisplayMode === 'calendar' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-6 px-2"
+                      onClick={() => setSubtaskDisplayMode('calendar')}
+                      title="Calendar view"
+                    >
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Filter tabs (only for list view) */}
+                {subtaskCounts.all > 0 && subtaskDisplayMode === 'list' && (
+                  <Tabs value={subtaskView} onValueChange={(v) => setSubtaskView(v as 'all' | 'active' | 'completed')}>
+                    <TabsList className="h-8">
+                      <TabsTrigger value="all" className="text-xs px-3 h-6">
+                        All ({subtaskCounts.all})
+                      </TabsTrigger>
+                      <TabsTrigger value="active" className="text-xs px-3 h-6">
+                        Active ({subtaskCounts.active})
+                      </TabsTrigger>
+                      <TabsTrigger value="completed" className="text-xs px-3 h-6">
+                        Completed ({subtaskCounts.completed})
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                )}
+              </div>
             </div>
 
             {/* Quick create subtask */}
@@ -573,20 +601,34 @@ export default function TaskPage() {
               onCreated={() => {}}
             />
 
-            {/* Subtask list with state grouping */}
-            {filteredSubtasks.length > 0 ? (
-              <TaskList
-                tasks={filteredSubtasks}
-                plans={plans}
-                groupBy="state"
-                onTaskClick={(t) => navigate(`/tasks/${t.id}`)}
-                emptyMessage="No subtasks"
-              />
-            ) : subtaskCounts.all > 0 ? (
-              <div className="text-sm text-muted-foreground py-4 text-center">
-                No {subtaskView} subtasks
-              </div>
-            ) : null}
+            {/* Subtask display - list or calendar */}
+            {subtaskDisplayMode === 'calendar' ? (
+              subtasks && subtasks.length > 0 ? (
+                <TaskCalendar
+                  tasks={subtasks}
+                  onTaskClick={(t) => navigate(`/tasks/${t.id}`)}
+                />
+              ) : (
+                <div className="text-sm text-muted-foreground py-4 text-center">
+                  No subtasks to display in calendar
+                </div>
+              )
+            ) : (
+              /* List view with filtering */
+              filteredSubtasks.length > 0 ? (
+                <TaskList
+                  tasks={filteredSubtasks}
+                  plans={plans}
+                  groupBy="state"
+                  onTaskClick={(t) => navigate(`/tasks/${t.id}`)}
+                  emptyMessage="No subtasks"
+                />
+              ) : subtaskCounts.all > 0 ? (
+                <div className="text-sm text-muted-foreground py-4 text-center">
+                  No {subtaskView} subtasks
+                </div>
+              ) : null
+            )}
           </div>
         </div>
       </div>

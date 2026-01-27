@@ -173,24 +173,101 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
 /**
  * Handle client-side commands from tool calls.
  * These are tools that don't execute on the server but trigger UI actions.
+ *
+ * DISABLED: AI drawing tools were a failed experiment - keeping code for future reference.
  */
-function handleClientSideCommands(toolCalls: ToolCall[]) {
+function handleClientSideCommands(_toolCalls: ToolCall[]) {
+  // DISABLED: AI drawing commands
+  // The AI drawing feature didn't work well - LLMs are not good at:
+  // - Mathematical calculations (grid indices → lat/lng conversion)
+  // - Spatial reasoning (interpreting contour patterns)
+  // - Generating precise coordinate arrays
+  //
+  // Future approach: Have client-side do spatial analysis and present
+  // candidates to AI for selection, rather than having AI do the math.
+
+  /*
   for (const toolCall of toolCalls) {
-    if (toolCall.name === 'draw_on_map') {
-      // Arguments are already parsed as an object, not a JSON string
-      const args = toolCall.arguments as { features?: unknown[]; label?: string };
-      if (args.features && Array.isArray(args.features)) {
-        console.log('[useChat] Executing draw_on_map with', args.features.length, 'features');
+    const args = toolCall.arguments as Record<string, unknown>;
+
+    switch (toolCall.name) {
+      case 'start_drawing': {
+        const startArgs = args as { mode?: string };
+        if (startArgs.mode) {
+          ChatBridge.executeCommand({
+            type: 'start-drawing',
+            mode: startArgs.mode as 'polygon' | 'linestring' | 'point' | 'circle' | 'select' | 'static',
+          });
+        }
+        break;
+      }
+
+      case 'add_feature': {
+        const addArgs = args as { feature?: unknown; auto_select?: boolean };
+        if (addArgs.feature) {
+          ChatBridge.executeCommand({
+            type: 'add-feature',
+            feature: addArgs.feature as any,
+            autoSelect: addArgs.auto_select ?? true,
+          });
+        }
+        break;
+      }
+
+      case 'select_feature': {
+        const selectArgs = args as { feature_id?: string };
+        if (selectArgs.feature_id) {
+          ChatBridge.executeCommand({
+            type: 'select-feature',
+            featureId: selectArgs.feature_id,
+          });
+        }
+        break;
+      }
+
+      case 'update_feature': {
+        const updateArgs = args as { feature_id?: string; properties?: Record<string, any>; geometry?: any };
+        if (updateArgs.feature_id) {
+          ChatBridge.executeCommand({
+            type: 'update-feature',
+            featureId: updateArgs.feature_id,
+            properties: updateArgs.properties,
+            geometry: updateArgs.geometry,
+          });
+        }
+        break;
+      }
+
+      case 'delete_feature': {
+        const deleteArgs = args as { feature_id?: string };
+        if (deleteArgs.feature_id) {
+          ChatBridge.executeCommand({
+            type: 'delete-feature',
+            featureId: deleteArgs.feature_id,
+          });
+        }
+        break;
+      }
+
+      case 'clear_features': {
         ChatBridge.executeCommand({
-          type: 'draw',
-          features: args.features,
-          label: args.label || 'AI Suggestions',
+          type: 'clear-features',
         });
-      } else {
-        console.warn('[useChat] draw_on_map called without features:', args);
+        break;
+      }
+
+      case 'get_features': {
+        ChatBridge.executeCommand({
+          type: 'get-features',
+          callback: (features) => {
+            console.log('[useChat] Received features:', features.length);
+          },
+        });
+        break;
       }
     }
   }
+  */
 }
 
 /**

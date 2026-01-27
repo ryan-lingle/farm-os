@@ -38,6 +38,8 @@ export interface DrawnFeaturesContext {
   features: Feature[];
   label?: string;
   count: number;
+  selectedFeatureId?: string | null;
+  mode?: 'polygon' | 'linestring' | 'point' | 'circle' | 'select' | 'static';
 }
 
 export interface ClientContext {
@@ -71,7 +73,55 @@ export interface HighlightCommand {
   label?: string;
 }
 
-export type ChatCommand = DrawCommand | ClearOverlayCommand | HighlightCommand;
+// New drawing tool commands
+export interface StartDrawingCommand {
+  type: 'start-drawing';
+  mode: 'polygon' | 'linestring' | 'point' | 'circle' | 'select' | 'static';
+}
+
+export interface AddFeatureCommand {
+  type: 'add-feature';
+  feature: Feature<Polygon | MultiPolygon | Point | LineString>;
+  autoSelect?: boolean;
+}
+
+export interface SelectFeatureCommand {
+  type: 'select-feature';
+  featureId: string;
+}
+
+export interface UpdateFeatureCommand {
+  type: 'update-feature';
+  featureId: string;
+  properties?: Record<string, any>;
+  geometry?: Polygon | MultiPolygon | Point | LineString;
+}
+
+export interface DeleteFeatureCommand {
+  type: 'delete-feature';
+  featureId: string;
+}
+
+export interface ClearFeaturesCommand {
+  type: 'clear-features';
+}
+
+export interface GetFeaturesCommand {
+  type: 'get-features';
+  callback: (features: Feature[]) => void;
+}
+
+export type ChatCommand =
+  | DrawCommand
+  | ClearOverlayCommand
+  | HighlightCommand
+  | StartDrawingCommand
+  | AddFeatureCommand
+  | SelectFeatureCommand
+  | UpdateFeatureCommand
+  | DeleteFeatureCommand
+  | ClearFeaturesCommand
+  | GetFeaturesCommand;
 
 // Event types
 export type ChatBridgeEvent =
@@ -148,6 +198,10 @@ class ChatBridgeImpl {
    * Execute a command (sent from chat to components).
    */
   executeCommand(command: ChatCommand): void {
+    console.log('[ChatBridge] executeCommand called');
+    console.log('[ChatBridge] Command type:', command.type);
+    console.log('[ChatBridge] Command payload:', JSON.stringify(command, null, 2));
+    console.log('[ChatBridge] Number of subscribers:', this.subscribers.size);
     this.publish({ type: 'command:execute', payload: command });
   }
 
@@ -204,6 +258,28 @@ export function formatTopographyContextForAI(topo: TopographyContext): string {
   }
 
   lines.push('```');
+  lines.push('');
+  lines.push('### Coordinate Conversion');
+  lines.push('');
+  lines.push('To convert grid indices to lat/lng coordinates for GeoJSON features:');
+  lines.push('```');
+  lines.push(`North: ${bounds.north.toFixed(6)}, South: ${bounds.south.toFixed(6)}`);
+  lines.push(`East: ${bounds.east.toFixed(6)}, West: ${bounds.west.toFixed(6)}`);
+  lines.push(`Grid size: ${elevationGrid.rows} rows x ${elevationGrid.cols} cols`);
+  lines.push('');
+  lines.push('Formula:');
+  lines.push(`  lat = ${bounds.north.toFixed(6)} - (row / ${elevationGrid.rows - 1}) * ${(bounds.north - bounds.south).toFixed(6)}`);
+  lines.push(`  lng = ${bounds.west.toFixed(6)} + (col / ${elevationGrid.cols - 1}) * ${(bounds.east - bounds.west).toFixed(6)}`);
+  lines.push('');
+  lines.push('Example for grid position (row=5, col=3):');
+  const exampleRow = Math.min(5, elevationGrid.rows - 1);
+  const exampleCol = Math.min(3, elevationGrid.cols - 1);
+  const exampleLat = bounds.north - (exampleRow / (elevationGrid.rows - 1)) * (bounds.north - bounds.south);
+  const exampleLng = bounds.west + (exampleCol / (elevationGrid.cols - 1)) * (bounds.east - bounds.west);
+  lines.push(`  lat = ${exampleLat.toFixed(6)}, lng = ${exampleLng.toFixed(6)}`);
+  lines.push('```');
+  lines.push('');
+  lines.push('**IMPORTANT FOR POLYGONS:** Coordinates must be [lng, lat] order (GeoJSON standard). Create polygons with at least 4 points forming a reasonable shape. The first and last coordinates must be identical to close the polygon.');
   lines.push('');
   lines.push('*Use this data to analyze terrain for placement of features like ponds, swales, or terraces.*');
 

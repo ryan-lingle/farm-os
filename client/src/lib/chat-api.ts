@@ -17,6 +17,10 @@ export async function sendChatMessage(
   history: ChatMessage[] = [],
   context?: ChatContext
 ): Promise<ChatResponse> {
+  console.log('[chat-api] Sending message:', message);
+  console.log('[chat-api] History length:', history.length);
+  console.log('[chat-api] Context:', context ? context.type : 'none');
+
   const response = await fetch(`${CHAT_API_URL}/chat`, {
     method: 'POST',
     headers: {
@@ -30,7 +34,14 @@ export async function sendChatMessage(
     throw new Error(errorData.error || `Chat request failed: ${response.status}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log('[chat-api] Response received');
+  console.log('[chat-api] Message:', data.message?.substring(0, 100) + '...');
+  console.log('[chat-api] Tool calls count:', data.tool_calls?.length || 0);
+  if (data.tool_calls?.length > 0) {
+    console.log('[chat-api] Tool calls:', JSON.stringify(data.tool_calls, null, 2));
+  }
+  return data;
 }
 
 export async function checkChatHealth(): Promise<boolean> {

@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BackReferences } from '@/components/BackReferences';
 import { LocationDetailMap } from '@/components/LocationDetailMap';
 import { ClimateSummaryCard } from '@/components/ClimateSummaryCard';
+import { WaterManagementCard } from '@/components/WaterManagementCard';
 import { format } from 'date-fns';
 
 // Asset type icons
@@ -58,9 +59,9 @@ export const LocationDetail: React.FC = () => {
     center ? center[1] : null
   );
 
-  // Fetch and inject topography data for chat context
-  const { topography } = useTopographyContext(location?.geometry);
-  useAutoInjectContext('topography', topography);
+  // DISABLED: Topography context for AI drawing - failed experiment
+  // const { topography } = useTopographyContext(location?.geometry);
+  // useAutoInjectContext('topography', topography);
 
   if (!id) {
     return (
@@ -273,6 +274,11 @@ export const LocationDetail: React.FC = () => {
           isLoading={climateLoading}
           error={climateError as Error | null}
         />
+      )}
+
+      {/* Water Management Recommendations */}
+      {climate?.rainfallContext && (
+        <WaterManagementCard rainfallContext={climate.rainfallContext} />
       )}
 
       {/* Assets at this Location */}

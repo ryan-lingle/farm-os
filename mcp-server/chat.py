@@ -151,46 +151,161 @@ TOOL_NAMES = [
     "get_tasks_blocked_by",
     "add_related_task",
     "mark_task_duplicate",
+    # DISABLED: AI drawing tools - failed experiment, keeping code for future reference
     # Client-side commands (not executed on server, passed to frontend)
-    "draw_on_map",
+    # "start_drawing",
+    # "add_feature",
+    # "select_feature",
+    # "update_feature",
+    # "delete_feature",
+    # "clear_features",
+    # "get_features",
 ]
 
 
-def draw_on_map(features: list, label: str = "AI Suggestions") -> dict:
-    """Draw GeoJSON features on the map as temporary suggestions.
+def start_drawing(mode: str) -> dict:
+    """Activate a drawing mode for the user to manually draw on the map.
 
-    Use this tool when you want to visualize locations, areas, or points on the map.
-    The features will appear as a blue dashed overlay that the user can review.
-
-    IMPORTANT: The 'features' parameter is REQUIRED. You must provide GeoJSON Feature objects.
+    Use this tool when you want to let the user draw something themselves.
+    After calling this, the user can click on the map to create features.
 
     Args:
-        features: REQUIRED. Array of GeoJSON Feature objects. Each feature must have type="Feature", geometry with coordinates, and properties. Example: [{"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[-86.574, 39.806], [-86.573, 39.806], [-86.573, 39.805], [-86.574, 39.805], [-86.574, 39.806]]]}, "properties": {"name": "Pond 1"}}]
-        label: A descriptive label for what is being drawn (e.g., "Suggested pond locations")
+        mode: Drawing mode - 'polygon', 'linestring', 'point', 'circle', 'select', or 'static'. Use 'polygon' for irregular areas, 'circle' for ponds/tanks (recommended for water features), 'linestring' for paths/boundaries, 'point' for markers, 'select' to let user edit existing features, 'static' to disable drawing.
 
     Returns:
-        Confirmation message (actual drawing happens on the client side)
-
-    Example:
-        draw_on_map(
-            features=[{
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [[[-86.574, 39.806], [-86.573, 39.806], [-86.573, 39.805], [-86.574, 39.805], [-86.574, 39.806]]]
-                },
-                "properties": {"name": "Pond 1"}
-            }],
-            label="Suggested keyline pond locations"
-        )
+        Confirmation that drawing mode was activated
     """
-    # This tool doesn't execute anything server-side.
-    # The tool call is passed to the frontend which handles the drawing.
+    valid_modes = ['polygon', 'linestring', 'point', 'circle', 'select', 'static']
+    if mode not in valid_modes:
+        return {"error": f"Invalid mode '{mode}'. Must be one of: {valid_modes}"}
+
     return {
-        "status": "drawing_requested",
-        "feature_count": len(features),
-        "label": label,
-        "message": f"Drawing {len(features)} feature(s) on the map: {label}"
+        "status": "drawing_mode_activated",
+        "mode": mode,
+        "message": f"Drawing mode set to '{mode}'. User can now draw on the map."
+    }
+
+
+def add_feature(feature: dict, auto_select: bool = True, properties: dict = None) -> dict:
+    """Add an EDITABLE GeoJSON feature to the map that the user can move, resize, and delete.
+
+    Use this tool to create features on the map. The feature becomes a real drawing that
+    the user can interact with - they can select it, drag it to move, and delete it.
+    This is the PRIMARY tool for AI-created map suggestions.
+
+    Args:
+        feature: GeoJSON Feature object with type, geometry, and properties. Example: {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[-86.574, 39.806], [-86.573, 39.806], [-86.573, 39.805], [-86.574, 39.805], [-86.574, 39.806]]]}, "properties": {"name": "Pond 1"}}
+        auto_select: Whether to automatically select the feature after adding (default: True). Keep this True so the user can immediately see and edit it.
+        properties: Optional properties to merge into the feature (alternative to including in feature object)
+
+    Returns:
+        The feature with its assigned ID
+    """
+    import sys
+
+    # If properties provided separately, merge into feature
+    if properties:
+        if 'properties' not in feature:
+            feature['properties'] = {}
+        feature['properties'].update(properties)
+
+    print(f"[chat.py add_feature] Called with feature: {json.dumps(feature, indent=2)}", file=sys.stderr)
+    print(f"[chat.py add_feature] auto_select: {auto_select}", file=sys.stderr)
+    return {
+        "status": "feature_added",
+        "feature": feature,
+        "auto_select": auto_select,
+        "message": f"Added feature to the map{' and selected it for editing' if auto_select else ''}"
+    }
+
+
+def select_feature(feature_id: str) -> dict:
+    """Select an existing feature on the map for editing.
+
+    Use this when you want to highlight a specific feature for the user to review or edit.
+
+    Args:
+        feature_id: The ID of the feature to select (from the drawn features context)
+
+    Returns:
+        Confirmation of selection
+    """
+    return {
+        "status": "feature_selected",
+        "feature_id": feature_id,
+        "message": f"Selected feature {feature_id} for editing"
+    }
+
+
+def update_feature(feature_id: str, properties: dict = None, geometry: dict = None) -> dict:
+    """Update an existing feature's properties or geometry.
+
+    Use this to modify features that are already drawn on the map.
+
+    Args:
+        feature_id: The ID of the feature to update
+        properties: New properties to merge into the feature (optional). Example: {"name": "Updated name", "area_acres": 2.5}
+        geometry: New geometry to replace the existing one (optional). Example: {"type": "Polygon", "coordinates": [...]}
+
+    Returns:
+        Confirmation of the update
+    """
+    if not properties and not geometry:
+        return {"error": "Must provide either properties or geometry to update"}
+
+    return {
+        "status": "feature_updated",
+        "feature_id": feature_id,
+        "properties": properties,
+        "geometry": geometry,
+        "message": f"Updated feature {feature_id}"
+    }
+
+
+def delete_feature(feature_id: str) -> dict:
+    """Delete a feature from the map.
+
+    Use this to remove a specific feature that is no longer needed.
+
+    Args:
+        feature_id: The ID of the feature to delete
+
+    Returns:
+        Confirmation of deletion
+    """
+    return {
+        "status": "feature_deleted",
+        "feature_id": feature_id,
+        "message": f"Deleted feature {feature_id}"
+    }
+
+
+def clear_features() -> dict:
+    """Clear all drawn features from the map.
+
+    Use this to remove all features and start fresh.
+
+    Returns:
+        Confirmation that features were cleared
+    """
+    return {
+        "status": "features_cleared",
+        "message": "All drawn features have been cleared from the map"
+    }
+
+
+def get_features() -> dict:
+    """Get all currently drawn features on the map.
+
+    Use this to see what features the user has drawn or that you have added.
+    The features will be returned in the response with their IDs and geometries.
+
+    Returns:
+        Request to get features (actual features are injected by the client)
+    """
+    return {
+        "status": "features_requested",
+        "message": "Requesting current features from the map"
     }
 
 # Import the module to look up functions dynamically
@@ -212,24 +327,6 @@ You have access to tools that allow you to:
 - Record observations and facts about assets
 - Move assets between locations
 - Get a summary of the farm
-- Draw suggestions on the map (ponds, swales, planting areas, etc.)
-
-DRAWING ON THE MAP:
-When the user asks you to "draw", "show", "suggest", "visualize", or "place" anything on the map, you MUST use the draw_on_map tool. This includes requests like:
-- "Where should I put a pond?"
-- "Draw suggested pond locations"
-- "Show me where to plant"
-- "Suggest areas for swales"
-
-You MUST provide the 'features' parameter with GeoJSON Feature objects. Use the location bounds from context to calculate coordinates within the property.
-
-Example:
-draw_on_map(
-    features=[
-        {"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [[[-86.574, 39.806], [-86.573, 39.806], [-86.573, 39.805], [-86.574, 39.805], [-86.574, 39.806]]]}, "properties": {"name": "Pond 1"}}
-    ],
-    label="Suggested Pond Locations"
-)
 
 Task Management:
 - Create, update, and complete tasks (every task belongs to a plan)
@@ -448,6 +545,11 @@ async def chat(message: str, history: Optional[list[dict]] = None, context: Opti
 
         # If no tool calls, return the response
         if not assistant_message.tool_calls or finish_reason == "stop":
+            print(f"[chat.py] Returning response with {len(tool_calls_made)} tool calls", file=sys.stderr)
+            for i, tc in enumerate(tool_calls_made):
+                print(f"[chat.py] Tool call {i}: {tc['name']}", file=sys.stderr)
+                if 'feature' in tc.get('arguments', {}):
+                    print(f"[chat.py] Feature in arguments: {json.dumps(tc['arguments']['feature'], indent=2)}", file=sys.stderr)
             return {
                 "message": assistant_message.content or "",
                 "tool_calls": tool_calls_made
@@ -474,15 +576,19 @@ async def chat(message: str, history: Optional[list[dict]] = None, context: Opti
         for tool_call in assistant_message.tool_calls:
             tool_name = tool_call.function.name
             tool_args = json.loads(tool_call.function.arguments)
+            print(f"[chat.py] Executing tool: {tool_name}", file=sys.stderr)
+            print(f"[chat.py] Tool arguments: {json.dumps(tool_args, indent=2)}", file=sys.stderr)
 
             try:
                 result = execute_tool(tool_name, tool_args)
+                print(f"[chat.py] Tool result: {json.dumps(result, indent=2) if isinstance(result, dict) else result}", file=sys.stderr)
                 tool_calls_made.append({
                     "name": tool_name,
                     "arguments": tool_args,
                     "result": result
                 })
             except Exception as e:
+                print(f"[chat.py] Tool error: {e}", file=sys.stderr)
                 result = {"error": str(e)}
                 tool_calls_made.append({
                     "name": tool_name,

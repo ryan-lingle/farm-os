@@ -27,7 +27,7 @@ import { TaskListItem } from './TaskListItem';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ChevronDown, ChevronRight, Plus, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 interface TaskListProps {
   tasks: Task[];
@@ -196,8 +196,9 @@ function CycleGroup({
   });
 
   // Display month name from startDate, fallback to cycle name
+  // Use parseISO to avoid timezone issues with date-only strings
   const displayName = cycle.startDate
-    ? format(new Date(cycle.startDate), 'MMMM yyyy')
+    ? format(parseISO(cycle.startDate), 'MMMM yyyy')
     : cycle.name;
 
   return (
@@ -321,6 +322,25 @@ export function TaskList({
         backlog.push(task);
       }
     }
+
+    // Sort tasks within each cycle by target_date (earliest first)
+    const sortByTargetDate = (a: Task, b: Task) => {
+      if (!a.targetDate && !b.targetDate) return 0;
+      if (!a.targetDate) return 1; // Tasks without dates go to end
+      if (!b.targetDate) return -1;
+      return new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime();
+    };
+
+    // Sort tasks in each cycle group
+    for (const [cycleId, cycleTasks] of scheduledByCycle) {
+      scheduledByCycle.set(cycleId, cycleTasks.sort(sortByTargetDate));
+    }
+
+    // Sort other groups by target_date as well
+    inProgress.sort(sortByTargetDate);
+    backlog.sort(sortByTargetDate);
+    done.sort(sortByTargetDate);
+    cancelled.sort(sortByTargetDate);
 
     // Sort cycles by start date
     const sortedCycleIds = Array.from(scheduledByCycle.keys()).sort((a, b) => {
